@@ -5,12 +5,26 @@ import { isAdmin } from './lib/admin';
 export default function Admin() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [adminStatus, setAdminStatus] = useState<boolean | null>(null);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+
+  const checkAdminStatus = async (email: string) => {
+    setLoading(true);
+    const status = await isAdmin(email);
+    setAdminStatus(status);
+    setLoading(false);
+  };
 
   useEffect(() => {
     // 1. 첫 로딩 시 현재 세션 확인 (새로고침 시 로그인 유지)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setLoading(false);
+      if (session?.user?.email) {
+        checkAdminStatus(session.user.email);
+      } else {
+        setLoading(false);
+      }
     });
 
     // 2. 로그인 상태 변화 감지 (로그인/로그아웃 시 상태 즉각 반영)
@@ -18,10 +32,34 @@ export default function Admin() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session?.user?.email) {
+        checkAdminStatus(session.user.email);
+      } else {
+        setAdminStatus(null);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (adminStatus === true) {
+      fetchSubmissions();
+    }
+  }, [adminStatus]);
+
+  const fetchSubmissions = async () => {
+    setLoadingSubmissions(true);
+    const { data, error } = await supabase
+      .from('workbook_submissions')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (data) {
+      setSubmissions(data);
+    }
+    setLoadingSubmissions(false);
+  };
 
   const handleLogin = async () => {
     await supabase.auth.signInWithOAuth({
@@ -35,11 +73,14 @@ export default function Admin() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setSession(null);
+    setAdminStatus(null);
+    window.location.replace('/'); // 로그아웃 후 뒤로가기 방지를 위해 replace 사용
   };
 
   // 로딩 중 화면
   if (loading) {
-    return <div className="min-h-screen bg-[#111111] flex items-center justify-center text-white">로딩 중...</div>;
+    return <div className="min-h-screen bg-[#111111] flex items-center justify-center text-white">권한 확인 중...</div>;
   }
 
   // 비로그인 상태 화면
@@ -76,7 +117,7 @@ export default function Admin() {
   }
 
   // 로그인 했지만 관리자가 아닌 경우 (화이트리스트 통과 실패)
-  if (!isAdmin(session.user.email)) {
+  if (adminStatus === false) {
     return (
       <div className="min-h-screen bg-[#111111] flex flex-col items-center justify-center text-white">
         <h1 className="text-2xl font-bold text-red-500 mb-4">접근 권한이 없습니다</h1>
@@ -111,9 +152,55 @@ export default function Admin() {
           </div>
         </div>
         
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-400">
-          <p className="mb-2 text-lg text-white font-bold">환영합니다, 관리자님! 👋</p>
-          <p>여기에 전체 사용자 목록, 통계 등 어드민 기능이 추가될 예정입니다.</p>
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-white">사용자 답변 기록</h2>
+            <button 
+              onClick={fetchSubmissions}
+              className="text-xs bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg transition-colors border border-zinc-700"
+            >
+              새로고침
+            </button>
+          </div>
+          
+          {loadingSubmissions ? (
+            <p className="text-zinc-400 text-center py-8">데이터를 불러오는 중...</p>
+          ) : submissions.length === 0 ? (
+            <p className="text-zinc-500 text-center py-8">아직 등록된 답변이 없습니다.</p>
+          ) : (
+            <div className="space-y-4">
+              {submissions.map((sub) => (
+                <div key={sub.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-2">
+                    <div>
+                      <span className="inline-block bg-purple-500/20 text-purple-400 text-xs font-bold px-2.5 py-1 rounded-md mb-2">
+                        {sub.theme} 테마
+                      </span>
+                      <h3 className="font-bold text-white text-lg">
+                        {sub.profile?.name || '익명'} 
+                        <span className="text-sm font-normal text-zinc-500 ml-2">({sub.user_email})</span>
+                      </h3>
+                      <p className="text-xs text-zinc-400 mt-1">
+                        {sub.profile?.year} / {sub.profile?.concern} / MBTI: {sub.profile?.mbti ? Object.values(sub.profile.mbti).join('') : '알 수 없음'}
+                      </p>
+                    </div>
+                    <span className="text-xs text-zinc-500 bg-zinc-900 px-2 py-1 rounded">
+                      {new Date(sub.created_at).toLocaleString('ko-KR')}
+                    </span>
+                  </div>
+                  
+                  <div className="bg-zinc-900/80 p-4 rounded-lg text-sm text-zinc-300 space-y-3 border border-zinc-800/50">
+                    {sub.messages?.filter((m: any) => m.role === 'user').map((msg: any, i: number) => (
+                      <div key={i} className="flex gap-3">
+                        <span className="text-emerald-400 font-black shrink-0">A.</span>
+                        <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

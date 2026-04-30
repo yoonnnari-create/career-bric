@@ -1,8 +1,19 @@
-export const ADMIN_EMAILS = [
-  'yoonnnari@gmail.com', // 나리님의 구글 이메일 주소 등록 완료!
-];
+import { supabase } from './supabase';
 
-export const isAdmin = (email?: string | null) => {
+export const isAdmin = async (email?: string | null): Promise<boolean> => {
   if (!email) return false;
-  return ADMIN_EMAILS.includes(email);
+  
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .select('email')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error || !data) return false;
+    return true;
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    return false;
+  }
 };
