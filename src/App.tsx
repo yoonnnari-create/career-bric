@@ -904,6 +904,31 @@ export default function App() {
                                       if (error) {
                                         console.error('Supabase insert error:', error);
                                         alert('DB 저장 중 오류가 발생했습니다.');
+                                      } else {
+                                        // 저장 성공 시 이메일 알림 전송
+                                        try {
+                                          await fetch('/api/send-email', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                              subject: `[SAI] 새로운 워크북 답변이 도착했습니다 - ${profile.name || '익명'}님`,
+                                              html: `
+                                                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #111; color: #fff; border-radius: 10px;">
+                                                  <h2 style="color: #a855f7;">새로운 워크북 제출 알림</h2>
+                                                  <div style="background: #222; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                                                    <p style="margin: 5px 0;"><strong>사용자:</strong> ${profile.name || '익명'}</p>
+                                                    <p style="margin: 5px 0;"><strong>연차:</strong> ${profile.year || '미입력'}</p>
+                                                    <p style="margin: 5px 0;"><strong>고민:</strong> ${profile.concern || '미입력'}</p>
+                                                    <p style="margin: 5px 0;"><strong>테마:</strong> ${theme}</p>
+                                                  </div>
+                                                  <a href="https://career-bric.vercel.app/admin" style="display: inline-block; background: #10b981; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">어드민 페이지에서 답변 확인하기</a>
+                                                </div>
+                                              `
+                                            })
+                                          });
+                                        } catch (e) {
+                                          console.error('Email notification error:', e);
+                                        }
                                       }
                                       
                                       // 임시 로컬 DB(상태) 저장
