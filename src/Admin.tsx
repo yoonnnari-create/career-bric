@@ -136,6 +136,13 @@ export default function Admin() {
   }
 
   // 로그인 성공 & 관리자 권한 확인됨
+  const themeStats = submissions.reduce((acc, curr) => {
+    const theme = curr.theme || '미지정';
+    acc[theme] = (acc[theme] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const totalSubmissions = submissions.length;
+
   return (
     <div className="min-h-screen bg-[#111111] text-white p-8">
       <div className="max-w-4xl mx-auto">
@@ -151,6 +158,28 @@ export default function Admin() {
             </button>
           </div>
         </div>
+
+        {/* 대시보드 통계 섹션 */}
+        {!loadingSubmissions && submissions.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold text-white mb-4">현황 요약</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex flex-col items-center justify-center shadow-lg hover:border-zinc-700 transition-colors">
+                <span className="text-sm text-zinc-400 font-bold mb-2">총 제출 건수</span>
+                <span className="text-4xl font-black text-white">{totalSubmissions}</span>
+              </div>
+              {Object.entries(themeStats).sort((a, b) => (b[1] as number) - (a[1] as number)).map(([theme, count]) => (
+                <div key={theme} className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex flex-col items-center justify-center shadow-lg hover:border-purple-500/30 transition-colors">
+                  <span className="text-sm text-zinc-400 font-bold mb-2">{theme} 테마</span>
+                  <div className="flex items-end gap-1">
+                    <span className="text-4xl font-black text-purple-400">{count as number}</span>
+                    <span className="text-zinc-500 font-bold mb-1">건</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8">
           <div className="flex items-center justify-between mb-6">
