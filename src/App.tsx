@@ -943,6 +943,8 @@ export default function App() {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({
+                                              userEmail: session?.user?.email,
+                                              userName: profile.name,
                                               subject: `[SAI] 새로운 워크북 답변이 도착했습니다 - ${profile.name || '익명'}님`,
                                               html: `
                                                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #111; color: #fff; border-radius: 10px;">
