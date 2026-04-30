@@ -893,14 +893,18 @@ export default function App() {
                                   onClick={async () => {
                                     setIsSavingToDB(true);
                                     try {
-                                      // 실제 DB 저장 로직 (사용자가 Supabase에 career_bricks 테이블을 만들었다고 가정)
-                                      /* 
-                                      await supabase.from('career_bricks').insert({
-                                        user_id: session?.user?.id,
+                                      // 실제 DB 저장 로직 활성화
+                                      const { error } = await supabase.from('workbook_submissions').insert({
+                                        user_email: session?.user?.email || '비회원',
+                                        profile: profile,
                                         theme: theme,
-                                        content: JSON.stringify(messages)
+                                        messages: messages
                                       });
-                                      */
+
+                                      if (error) {
+                                        console.error('Supabase insert error:', error);
+                                        alert('DB 저장 중 오류가 발생했습니다.');
+                                      }
                                       
                                       // 임시 로컬 DB(상태) 저장
                                       setUserExperienceLog(prev => {
@@ -914,6 +918,7 @@ export default function App() {
                                       setChatTurn(0);
                                       setChatInput('');
                                     } catch (e) {
+                                      console.error(e);
                                       alert('저장에 실패했습니다.');
                                     } finally {
                                       setIsSavingToDB(false);
