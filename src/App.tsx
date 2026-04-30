@@ -480,6 +480,14 @@ export default function App() {
           </div>
 
           <div className="flex gap-2 items-center ml-auto border-l border-zinc-800 pl-4">
+            {session && (
+              <a
+                href="/mypage"
+                className="px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 hover:text-purple-300 rounded-lg transition-colors text-sm font-bold border border-purple-500/20"
+              >
+                마이페이지
+              </a>
+            )}
             <button 
               onClick={() => {
                 localStorage.setItem(SAVE_KEY, JSON.stringify({ step, hasStarted, isOnboarded, profile, theme, messages, chatTurn, userExperienceLog }));
