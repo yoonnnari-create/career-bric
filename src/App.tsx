@@ -25,6 +25,9 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './lib/supabase';
 
+const IconMap: Record<string, any> = { Blocks, Target, Network, Layers, Presentation, Cpu, ArrowRight, Briefcase, Heart, Flame, Lightbulb, Castle, BookOpen, Send, MessageSquare, Bot, Mic, Sparkles, Star, TrendingUp, History };
+
+
 // --- Hard Skills Data (Updated to Block Architect JSON Spec) ---
 const HARD_SKILLS = [
   { id: 1, title: "현장 밀착형 요구사항 발굴", type: 'Action', color: 'green', colorCode: '#77DD77', layout: 1, icon: Target, detail: "모호한 과업지시서에 의존하지 않고 즉각적으로 제주도 현장에 투입하여 실무자의 진짜 문제(Root Cause)를 파악함", impact: "탁상공론을 배제한 실효성 있는 제안 기틀 마련" },
@@ -183,6 +186,7 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [chatTurn, setChatTurn] = useState(0);
   const [userExperienceLog, setUserExperienceLog] = useState<{theme: string, messages: ChatMessage[]}[]>([]);
+  const [generatedBlueprint, setGeneratedBlueprint] = useState<any>(null);
   
   const [showLoadPrompt, setShowLoadPrompt] = useState(false);
   const [savedData, setSavedData] = useState<any>(null);
@@ -404,6 +408,17 @@ export default function App() {
       }
     }
   };
+
+  const activeBlocks = generatedBlueprint?.skills || ALL_BLOCKS;
+  const activeBlocksByCategory = generatedBlueprint ? {
+    Core: activeBlocks.filter((b: any) => b.type === 'Core'),
+    Network: activeBlocks.filter((b: any) => b.type === 'Network'),
+    Action: activeBlocks.filter((b: any) => b.type === 'Action'),
+    Future: activeBlocks.filter((b: any) => b.type === 'Future')
+  } : BLOCKS_BY_CATEGORY;
+  
+  const activeBridgeData = generatedBlueprint?.bridgeBuilderData || BRIDGE_BUILDER_DATA;
+  const activeWriterData = generatedBlueprint?.careerWriterData || getCareerWriterData(profile.concern);
 
   return (
     <div className="min-h-screen bg-[#111111] text-zinc-100 overflow-hidden relative" style={{ fontFamily: "'Pretendard', sans-serif" }}>
@@ -1043,7 +1058,7 @@ export default function App() {
                   </h2>
                   <p className="text-zinc-400 font-medium bg-zinc-900 inline-block px-4 py-2 rounded-full border border-zinc-800">
                     <span className="text-purple-400 mr-2">요약:</span>
-                    {BRIDGE_BUILDER_DATA.summary}
+                    {activeBridgeData.summary}
                   </p>
                 </div>
 
@@ -1058,7 +1073,7 @@ export default function App() {
                   <div className="hidden lg:block absolute top-1/2 left-8 right-8 h-px bg-zinc-800 border-dashed border-t border-zinc-700"></div>
                   <div className="hidden lg:block absolute left-1/2 top-8 bottom-8 w-px bg-zinc-800 border-dashed border-l border-zinc-700"></div>
 
-                  {Object.entries(BLOCKS_BY_CATEGORY).map(([category, blocks]) => {
+                  {Object.entries(activeBlocksByCategory).map(([category, blocks]) => {
                     const colorMap: Record<string, string> = { Core: '#D3D3D3', Network: '#AEC6CF', Action: '#77DD77', Future: '#B19CD9' };
                     const bgColor = colorMap[category];
                     const info = CATEGORY_INFO[category as keyof typeof CATEGORY_INFO];
@@ -1098,7 +1113,7 @@ export default function App() {
                                 <LegoStuds colorCode={block.colorCode} />
                                 <div className="relative z-10 flex items-start gap-3">
                                   <div className="p-2.5 rounded-xl bg-black/10 mt-0.5 text-black/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] backdrop-blur-sm border border-white/20">
-                                    <block.icon size={20} strokeWidth={2.5} />
+                                    {(() => { const Icon = typeof block.icon === 'string' ? (IconMap[block.icon] || Target) : block.icon; return <Icon size={20} strokeWidth={2.5} />; })()}
                                   </div>
                                   <div className="flex-1">
                                     <span className="font-black text-lg block mb-1.5 text-black/90 tracking-tight">{block.title}</span>
@@ -1182,36 +1197,36 @@ export default function App() {
                       <span className="text-amber-400">[MBTI: {profile.mbti ? Object.values(profile.mbti).join('') : '고유'}]</span>의 기질을 결합한 보기 드문 브릭 조합이군요!
                     </h2>
                     <h3 className="text-lg text-zinc-400">
-                      {BRIDGE_BUILDER_DATA.greeting}
+                      {activeBridgeData.greeting}
                     </h3>
                   </div>
 
                   <div className="flex-1 overflow-y-auto custom-scrollbar pb-6 px-2">
                     {/* Golden Circle Matrix */}
                     <div className="bg-gradient-to-br from-amber-500/10 to-purple-500/10 border border-amber-500/30 p-6 rounded-3xl mb-8 shadow-xl backdrop-blur-md">
-                      <h3 className="text-xl font-black text-amber-400 mb-4">{BRIDGE_BUILDER_DATA.matrix.title}</h3>
+                      <h3 className="text-xl font-black text-amber-400 mb-4">{activeBridgeData.matrix.title}</h3>
                       <div className="flex flex-col md:flex-row gap-4 mb-4">
                         <div className="flex-1 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-700/50">
                           <span className="text-xs font-bold text-zinc-500 mb-1 block">What (경력)</span>
-                          <p className="text-sm text-zinc-200">{BRIDGE_BUILDER_DATA.matrix.what}</p>
+                          <p className="text-sm text-zinc-200">{activeBridgeData.matrix.what}</p>
                         </div>
                         <div className="flex-1 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-700/50">
                           <span className="text-xs font-bold text-zinc-500 mb-1 block">Who (기질)</span>
-                          <p className="text-sm text-zinc-200">{BRIDGE_BUILDER_DATA.matrix.who}</p>
+                          <p className="text-sm text-zinc-200">{activeBridgeData.matrix.who}</p>
                         </div>
                         <div className="flex-1 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-700/50">
                           <span className="text-xs font-bold text-zinc-500 mb-1 block">Future (학습)</span>
-                          <p className="text-sm text-zinc-200">{BRIDGE_BUILDER_DATA.matrix.future}</p>
+                          <p className="text-sm text-zinc-200">{activeBridgeData.matrix.future}</p>
                         </div>
                       </div>
                       <div className="bg-amber-500/20 text-amber-100 p-4 rounded-2xl border border-amber-500/30 font-bold text-center leading-relaxed text-sm">
-                        {BRIDGE_BUILDER_DATA.matrix.synergy}
+                        {activeBridgeData.matrix.synergy}
                       </div>
                     </div>
 
                     {/* 3 Scenarios */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                      {BRIDGE_BUILDER_DATA.scenarios.map((scenario, idx) => (
+                      {activeBridgeData.scenarios.map((scenario, idx) => (
                         <div key={idx} className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-700/50 rounded-3xl p-6 shadow-2xl relative flex flex-col group hover:-translate-y-1 transition-transform">
                           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#B19CD9] to-transparent opacity-50 group-hover:opacity-100 transition-opacity"></div>
                           
@@ -1247,7 +1262,7 @@ export default function App() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-3xl backdrop-blur-md">
                         <h3 className="flex items-center gap-2 text-red-400 font-black mb-3"><Flame size={20}/> 킬러 퀘스트 (Killer Quest)</h3>
-                        <p className="text-red-100 text-sm leading-relaxed whitespace-pre-wrap">{BRIDGE_BUILDER_DATA.killerQuest}</p>
+                        <p className="text-red-100 text-sm leading-relaxed whitespace-pre-wrap">{activeBridgeData.killerQuest}</p>
                       </div>
                       
                       <div className="bg-indigo-500/10 border border-indigo-500/30 p-6 rounded-3xl backdrop-blur-md">
@@ -1255,9 +1270,9 @@ export default function App() {
                           profile.concern.includes("독립") ? "나의 첫 번째 세일즈 피칭 (Elevator Pitch)" : 
                           profile.concern.includes("전문성") ? "성과 리뷰 / 연봉 협상 핵심 방어 논리" :
                           profile.concern.includes("고민") ? "나를 소개하는 퍼스널 브랜딩 원라이너" :
-                          BRIDGE_BUILDER_DATA.cheatKey.title
+                          activeBridgeData.cheatKey.title
                         }</h3>
-                        <p className="text-indigo-100 text-sm leading-relaxed whitespace-pre-wrap bg-zinc-950/50 p-4 rounded-xl border border-indigo-500/20">{BRIDGE_BUILDER_DATA.cheatKey.content}</p>
+                        <p className="text-indigo-100 text-sm leading-relaxed whitespace-pre-wrap bg-zinc-950/50 p-4 rounded-xl border border-indigo-500/20">{activeBridgeData.cheatKey.content}</p>
                       </div>
                     </div>
                   </div>
@@ -1298,15 +1313,15 @@ export default function App() {
                     <div className="inline-flex items-center justify-center p-3 bg-emerald-500/20 text-emerald-400 rounded-2xl mb-4 shadow-[0_0_30px_rgba(52,211,153,0.3)]">
                       <BookOpen size={32} />
                     </div>
-                    <h3 className="text-lg text-zinc-400 mb-2">{getCareerWriterData(profile.concern).greeting}</h3>
+                    <h3 className="text-lg text-zinc-400 mb-2">{activeWriterData.greeting}</h3>
                     <h2 className="text-xl md:text-2xl font-black text-white leading-tight bg-zinc-900/80 p-5 rounded-2xl border border-zinc-700/50 shadow-2xl">
-                      {getCareerWriterData(profile.concern).headline}
+                      {activeWriterData.headline}
                     </h2>
                   </div>
 
                   <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pb-6 pr-2">
                     {(() => {
-                      const writerData = getCareerWriterData(profile.concern);
+                      const writerData = activeWriterData;
                       
                       return writerData.sections ? (
                         <div className="bg-[#111111] border border-zinc-800 rounded-3xl p-8 md:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden font-sans">
