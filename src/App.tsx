@@ -905,9 +905,9 @@ export default function App() {
                                         console.error('Supabase insert error:', error);
                                         alert('DB 저장 중 오류가 발생했습니다.');
                                       } else {
-                                        // 저장 성공 시 이메일 알림 전송
+                                        // 저장 성공 시 이메일 알림 전송 (에러 체킹 강화)
                                         try {
-                                          await fetch('/api/send-email', {
+                                          const response = await fetch('/api/send-email', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({
@@ -926,8 +926,17 @@ export default function App() {
                                               `
                                             })
                                           });
-                                        } catch (e) {
-                                          console.error('Email notification error:', e);
+                                          
+                                          const result = await response.json();
+                                          if (!response.ok || !result.success) {
+                                            console.error('Email API Error Response:', result);
+                                            alert(`이메일 발송 실패: ${result.error || result.message || '알 수 없는 오류'}\n(Vercel 환경 변수 설정을 다시 확인해주세요.)`);
+                                          } else {
+                                            console.log('이메일 발송 성공:', result);
+                                          }
+                                        } catch (e: any) {
+                                          console.error('Email notification fetch error:', e);
+                                          alert(`이메일 서버 연결 실패: ${e.message}`);
                                         }
                                       }
                                       
