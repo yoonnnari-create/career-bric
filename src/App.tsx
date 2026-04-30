@@ -949,7 +949,8 @@ export default function App() {
                                     try {
                                       // 실제 DB 저장 로직 활성화
                                       const { error } = await supabase.from('workbook_submissions').insert({
-                                        user_email: session?.user?.email || '비회원',
+                                        user_id: session?.user?.id,
+                                          user_email: session?.user?.email || '비회원',
                                         profile: profile,
                                         theme: theme,
                                         messages: messages
