@@ -322,6 +322,10 @@ export default function App() {
       initialMessage = '🛠️ [시스템] 테마네요! 매번 반복되는 병목 현상을 님은 어떤 도구(혹은 구조)로 해결하셨나요?';
     } else if (selectedTheme === '성장') {
       initialMessage = '🌱 [성장]의 순간이군요! 꼼짝도 안 하던 동료나 조직을 움직이게 만든, 당신만의 결정적인 한 마디나 액션은 무엇이었나요?';
+    } else if (selectedTheme === 'OO') {
+      initialMessage = '🤔 [OO] 테마군요! 이 경험에서 당신이 가장 중요하게 생각했던 부분이나 어려웠던 점은 무엇이었나요?';
+    } else if (selectedTheme === 'XX') {
+      initialMessage = '💡 [XX] 테마네요! 이 과정을 통해 새롭게 깨달은 점이나 극복해야 했던 한계는 무엇이었나요?';
     } else if (selectedTheme === '기타(자유)') {
       initialMessage = '✨ [자유 주제]를 선택하셨네요! 건강, 재정, 개인적인 목표 등 현재 가장 기록해 두고 싶은 당신만의 특별한 상황이나 고민은 무엇인가요?';
     }
@@ -795,6 +799,16 @@ export default function App() {
                         <div className="text-3xl mb-2">🌱</div>
                         <h3 className="font-bold text-lg mb-1 group-hover:text-rose-400 transition-colors">성장</h3>
                         <p className="text-xs text-zinc-500">사람을 움직이게 한 촉진력</p>
+                      </button>
+                      <button onClick={() => handleSelectTheme('OO')} className="bg-zinc-900 border border-zinc-700 hover:border-teal-500 hover:bg-zinc-800 p-5 rounded-2xl transition-all text-left group">
+                        <div className="text-3xl mb-2">🤔</div>
+                        <h3 className="font-bold text-lg mb-1 group-hover:text-teal-400 transition-colors">OO</h3>
+                        <p className="text-xs text-zinc-500">새로운 테마 설명 (OO)</p>
+                      </button>
+                      <button onClick={() => handleSelectTheme('XX')} className="bg-zinc-900 border border-zinc-700 hover:border-orange-500 hover:bg-zinc-800 p-5 rounded-2xl transition-all text-left group">
+                        <div className="text-3xl mb-2">💡</div>
+                        <h3 className="font-bold text-lg mb-1 group-hover:text-orange-400 transition-colors">XX</h3>
+                        <p className="text-xs text-zinc-500">새로운 테마 설명 (XX)</p>
                       </button>
                       <button onClick={() => handleSelectTheme('기타(자유)')} className="bg-zinc-900 border border-zinc-700 hover:border-emerald-500 hover:bg-zinc-800 p-5 rounded-2xl transition-all text-left group md:col-span-3 lg:col-span-1 border-dashed bg-zinc-900/50">
                         <div className="text-3xl mb-2">✨</div>
