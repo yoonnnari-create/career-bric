@@ -333,7 +333,7 @@ export default function App() {
 
         <main className="max-w-5xl mx-auto px-6 pt-12 space-y-12">
           
-          <div className="text-center max-w-2xl mx-auto space-y-4 bg-white p-10 rounded-[2rem] border-4 border-slate-200 shadow-xl relative mt-4">
+          <div className="text-center max-w-2xl mx-auto space-y-4 bg-white p-10 rounded-2xl border-[3px] border-b-[8px] border-r-[6px] border-slate-300 shadow-xl relative mt-4">
              {/* Decorative block */}
              <div className="absolute -top-10 left-1/2 -translate-x-1/2">
                 <BlockContainer type="work" className="w-20 h-20 flex items-center justify-center">
@@ -342,15 +342,16 @@ export default function App() {
              </div>
 
             <h1 className="text-4xl font-black tracking-tight text-slate-900 mt-6">구조화 리포트</h1>
-            <p className="text-lg text-slate-500 font-bold leading-relaxed">
+            <p className="text-lg text-slate-600 font-bold leading-relaxed">
               캔버스에 조립된 {bricks.length}개의 블록들을 분석하여,<br/>
               현재 상태의 모순점과 가장 현실적인 다음 경로를 도출했습니다.
             </p>
           </div>
 
           {/* Section 1: Current Map */}
-          <section className="bg-white rounded-3xl p-8 border-4 border-slate-200 shadow-md">
-            <h2 className="text-xl font-black flex items-center gap-2 mb-6 border-b-2 border-slate-100 pb-4">
+          <section className="bg-slate-50 rounded-3xl p-8 border-[3px] border-b-[10px] border-r-[8px] border-slate-300 shadow-xl relative mt-8">
+            <BlockStuds bg="bg-slate-50" border="border-slate-300" />
+            <h2 className="text-xl font-black flex items-center gap-2 mb-6 border-b-4 border-slate-200 pb-4">
               <Map className="text-indigo-500" /> 블록 구조도 (State Map)
             </h2>
             <div className="grid md:grid-cols-3 gap-6">
@@ -386,7 +387,8 @@ export default function App() {
             </h2>
             <div className="grid md:grid-cols-2 gap-6">
               {/* Path 1 */}
-              <div className="bg-white rounded-3xl p-8 border-4 border-indigo-200 shadow-lg relative overflow-hidden hover:-translate-y-1 transition-transform">
+              <div className="bg-white rounded-2xl p-8 border-[3px] border-b-[8px] border-r-[6px] border-indigo-300 shadow-xl relative overflow-hidden hover:-translate-y-2 active:translate-y-[2px] active:border-b-[4px] transition-all">
+                <BlockStuds bg="bg-white" border="border-indigo-300" />
                 <div className="absolute top-0 right-0 p-6 opacity-10">
                   <Target size={100} />
                 </div>
@@ -411,7 +413,8 @@ export default function App() {
               </div>
 
               {/* Path 2 */}
-              <div className="bg-white rounded-3xl p-8 border-4 border-slate-200 shadow-md relative overflow-hidden hover:-translate-y-1 transition-transform">
+              <div className="bg-white rounded-2xl p-8 border-[3px] border-b-[8px] border-r-[6px] border-slate-300 shadow-xl relative overflow-hidden hover:-translate-y-2 active:translate-y-[2px] active:border-b-[4px] transition-all">
+                <BlockStuds bg="bg-white" border="border-slate-300" />
                 <div className="absolute top-0 right-0 p-6 opacity-5">
                   <Minimize2 size={100} />
                 </div>
@@ -438,7 +441,8 @@ export default function App() {
           </section>
 
           {/* Section 3: Next Actions */}
-          <section className="bg-indigo-900 rounded-3xl p-8 md:p-10 text-white shadow-2xl flex flex-col md:flex-row gap-8 items-center relative overflow-hidden border-b-[8px] border-indigo-950">
+          <section className="bg-indigo-600 rounded-3xl p-8 md:p-10 text-white shadow-2xl flex flex-col md:flex-row gap-8 items-center relative border-[3px] border-b-[12px] border-r-[8px] border-indigo-900 mt-12">
+             <BlockStuds bg="bg-indigo-600" border="border-indigo-900" />
              <div className="md:w-1/3 z-10 space-y-4">
                <h2 className="text-3xl font-black tracking-tight">2주 안에 실행할<br/>작은 조립</h2>
                <p className="text-indigo-200 font-bold text-sm leading-relaxed">
