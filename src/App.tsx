@@ -50,14 +50,21 @@ const CORE_BRICKS: Record<CoreBrickType, { title: string, icon: any, color: stri
   autonomy: { title: '자율성과 회복', icon: Activity, color: 'teal', desc: '외부 시스템에서 벗어나 주도권과 에너지를 되찾으려는 패턴' }
 };
 
-// Map color prefixes to Tailwind classes
-const getBrickColors = (color: string) => ({
-  bg: `bg-${color}-500`,
-  borderBody: `border-${color}-700`,
-  text: color === 'amber' ? 'text-amber-950' : 'text-white',
-  studBg: `bg-${color}-400`,
-  studBorder: `border-${color}-600`,
-});
+// Map color prefixes to Tailwind classes explicitly for Tailwind to parse
+const COLOR_CLASSES: Record<string, any> = {
+  slate: { bg: 'bg-slate-500', borderBody: 'border-slate-700', text: 'text-white', studBg: 'bg-slate-400', studBorder: 'border-slate-600' },
+  rose: { bg: 'bg-rose-500', borderBody: 'border-rose-700', text: 'text-white', studBg: 'bg-rose-400', studBorder: 'border-rose-600' },
+  amber: { bg: 'bg-amber-400', borderBody: 'border-amber-600', text: 'text-amber-950', studBg: 'bg-amber-300', studBorder: 'border-amber-500' },
+  stone: { bg: 'bg-stone-500', borderBody: 'border-stone-700', text: 'text-white', studBg: 'bg-stone-400', studBorder: 'border-stone-600' },
+  orange: { bg: 'bg-orange-500', borderBody: 'border-orange-700', text: 'text-white', studBg: 'bg-orange-400', studBorder: 'border-orange-600' },
+  emerald: { bg: 'bg-emerald-500', borderBody: 'border-emerald-700', text: 'text-white', studBg: 'bg-emerald-400', studBorder: 'border-emerald-600' },
+  green: { bg: 'bg-green-500', borderBody: 'border-green-700', text: 'text-white', studBg: 'bg-green-400', studBorder: 'border-green-600' },
+  blue: { bg: 'bg-blue-500', borderBody: 'border-blue-700', text: 'text-white', studBg: 'bg-blue-400', studBorder: 'border-blue-600' },
+  purple: { bg: 'bg-purple-500', borderBody: 'border-purple-700', text: 'text-white', studBg: 'bg-purple-400', studBorder: 'border-purple-600' },
+  teal: { bg: 'bg-teal-500', borderBody: 'border-teal-700', text: 'text-white', studBg: 'bg-teal-400', studBorder: 'border-teal-600' },
+};
+
+const getBrickColors = (color: string) => COLOR_CLASSES[color] || COLOR_CLASSES['slate'];
 
 // --- High Quality 3D Lego Brick Component ---
 const Brick3D = ({ type, children, large = false, onClick, className = '' }: { type: BrickType | CoreBrickType, children: React.ReactNode, large?: boolean, onClick?: () => void, className?: string }) => {
