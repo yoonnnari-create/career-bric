@@ -300,31 +300,30 @@ export default function App() {
           )}
 
           {/* 4 Quadrants Zones */}
-          <div className="absolute inset-0 pointer-events-none z-0">
-            {/* Horizontal Line */}
-            <div className="absolute top-1/2 left-0 w-full h-px bg-slate-200/50"></div>
-            {/* Vertical Line */}
-            <div className="absolute top-0 left-1/2 w-px h-full bg-slate-200/50"></div>
-            
-            {/* Top Left: Core */}
-            <div className="absolute top-8 left-8">
-              <div className="text-4xl font-black text-slate-200/50 uppercase tracking-widest">Core</div>
-              <div className="text-sm font-bold text-slate-300">내려놓을 수 없는 핵심</div>
+          <div className="absolute inset-0 pointer-events-none z-0 flex flex-col">
+            <div className="flex flex-1">
+              {/* Top Left: Core */}
+              <div className="flex-1 bg-slate-100/40 border-r-4 border-b-4 border-dashed border-slate-300/60 p-8 relative">
+                <div className="text-5xl font-black text-slate-300 uppercase tracking-widest">Core</div>
+                <div className="text-base font-bold text-slate-500 mt-2">내려놓을 수 없는 핵심</div>
+              </div>
+              {/* Top Right: Keep */}
+              <div className="flex-1 bg-emerald-50/40 border-b-4 border-dashed border-slate-300/60 p-8 text-right relative">
+                <div className="text-5xl font-black text-emerald-300 uppercase tracking-widest">Keep</div>
+                <div className="text-base font-bold text-emerald-600 mt-2">유지하고 강화할 요소</div>
+              </div>
             </div>
-            {/* Top Right: Keep */}
-            <div className="absolute top-8 right-8 text-right">
-              <div className="text-4xl font-black text-emerald-200/50 uppercase tracking-widest">Keep</div>
-              <div className="text-sm font-bold text-emerald-300">유지하고 강화할 요소</div>
-            </div>
-            {/* Bottom Left: Experiment */}
-            <div className="absolute bottom-8 left-8">
-              <div className="text-4xl font-black text-indigo-200/50 uppercase tracking-widest">Try</div>
-              <div className="text-sm font-bold text-indigo-300">작게 실험해 볼 요소</div>
-            </div>
-            {/* Bottom Right: Discard */}
-            <div className="absolute bottom-8 right-8 text-right">
-              <div className="text-4xl font-black text-rose-200/50 uppercase tracking-widest">Discard</div>
-              <div className="text-sm font-bold text-rose-300">포기하거나 버릴 요소</div>
+            <div className="flex flex-1">
+              {/* Bottom Left: Experiment */}
+              <div className="flex-1 bg-indigo-50/40 border-r-4 border-dashed border-slate-300/60 p-8 flex flex-col justify-end relative">
+                <div className="text-5xl font-black text-indigo-300 uppercase tracking-widest">Try</div>
+                <div className="text-base font-bold text-indigo-500 mt-2">작게 실험해 볼 요소</div>
+              </div>
+              {/* Bottom Right: Discard */}
+              <div className="flex-1 bg-rose-50/40 p-8 flex flex-col justify-end text-right relative">
+                <div className="text-5xl font-black text-rose-300 uppercase tracking-widest">Discard</div>
+                <div className="text-base font-bold text-rose-500 mt-2">포기하거나 버릴 요소</div>
+              </div>
             </div>
           </div>
 
