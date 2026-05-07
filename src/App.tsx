@@ -117,10 +117,24 @@ export default function App() {
     setShowCoreModal(true);
   };
 
-  const handleCoreBrickSelect = (type: CoreBrickType) => {
+  const handleCoreBrickSelect = async (type: CoreBrickType) => {
     setUserCoreBrick(type);
     setShowCoreModal(false);
     setView('report');
+
+    // Save to Supabase for Admin to see
+    try {
+      await supabase.from('workbook_submissions').insert([
+        {
+          theme: type,
+          messages: bricks,
+          user_email: session?.user?.email || 'anonymous',
+          profile: { type: 'lifebric_canvas', name: session?.user?.user_metadata?.full_name || '익명' }
+        }
+      ]);
+    } catch (e) {
+      console.error('Failed to save submission:', e);
+    }
   };
 
   // --------------------------------------------------------
