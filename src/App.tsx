@@ -576,22 +576,22 @@ export default function App() {
              <div className="md:w-1/3 z-10 space-y-4">
                <h2 className="text-3xl font-black tracking-tight">2주 안에 실행할<br/>작은 조립</h2>
                <p className="text-indigo-200 font-bold text-sm leading-relaxed">
-                 거창한 이직이나 퇴사가 아닌, 리스크 없이 경로를 테스트해 볼 수 있는 구체적인 액션 아이템입니다.
+                 거창한 이직이나 퇴사가 아닌, 각 경로별 리스크를 작게 테스트해 볼 수 있는 구체적인 액션 아이템입니다.
                </p>
              </div>
              <div className="md:w-2/3 z-10 w-full space-y-4">
                <div className="flex items-start gap-4 bg-white/10 p-5 rounded-2xl border-2 border-white/20 backdrop-blur-sm border-b-4 border-r-4">
-                 <div className="w-10 h-10 rounded-xl bg-white text-indigo-900 flex items-center justify-center shrink-0 font-black shadow-lg border-b-4 border-indigo-200">1</div>
+                 <div className="w-10 h-10 rounded-xl bg-white text-indigo-900 flex items-center justify-center shrink-0 font-black shadow-lg border-b-4 border-indigo-200">A</div>
                  <div>
-                   <h4 className="font-black text-white mb-1.5 text-lg">관심 경로의 현직자와 가벼운 커피챗</h4>
-                   <p className="text-sm text-indigo-100 font-bold leading-relaxed">내가 고려하는 직무(Option A)로 이직한 분에게 메시지를 보내 현실적인 이야기를 들어봅니다.</p>
+                   <h4 className="font-black text-white mb-1.5 text-lg">Option A 테스트: 현직자 커피챗</h4>
+                   <p className="text-sm text-indigo-100 font-bold leading-relaxed">직무 피벗이 나의 <b>{coreBrick.title}</b>을(를) 심각하게 훼손하지 않는지 확인하기 위해, 관심 직무 현직자에게 가벼운 질문을 던져봅니다.</p>
                  </div>
                </div>
                <div className="flex items-start gap-4 bg-white/10 p-5 rounded-2xl border-2 border-white/20 backdrop-blur-sm border-b-4 border-r-4">
-                 <div className="w-10 h-10 rounded-xl bg-teal-400 text-teal-950 flex items-center justify-center shrink-0 font-black shadow-lg border-b-4 border-teal-600">2</div>
+                 <div className="w-10 h-10 rounded-xl bg-slate-300 text-slate-900 flex items-center justify-center shrink-0 font-black shadow-lg border-b-4 border-slate-500">B</div>
                  <div>
-                   <h4 className="font-black text-white mb-1.5 text-lg">나의 '경험 블록'을 한 장으로 조립하기</h4>
-                   <p className="text-sm text-indigo-100 font-bold leading-relaxed">디자인이나 형식을 빼고, 오늘 캔버스에 적었던 <b>핵심 자원 블록</b> 3가지만을 중심으로 문서화해 봅니다.</p>
+                   <h4 className="font-black text-white mb-1.5 text-lg">Option B 테스트: 시간/에너지 통제 실험</h4>
+                   <p className="text-sm text-indigo-100 font-bold leading-relaxed">현직을 유지하되, 이번 주 목요일 하루만 완벽히 정시 퇴근하고 <b>{desires[0]?.content || '사이드 프로젝트'}</b>에 2시간을 온전히 투자해 봅니다.</p>
                  </div>
                </div>
              </div>
