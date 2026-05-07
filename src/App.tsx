@@ -125,27 +125,27 @@ export default function App() {
   const CoreDef = CORE_BRICKS[currentCore];
 
   useEffect(() => {
-    if (bricks.length === 1) setInsightMessage("첫 번째 블록이 캔버스에 놓였습니다. 마우스로 드래그하여 위치를 자유롭게 이동해 보세요.");
-    if (bricks.length === 3) setInsightMessage("블록이 쌓이고 있습니다. 관련된 욕구와 불안은 서로 가까이 붙여보세요.");
-    if (bricks.filter(b => b.zone === 'discard').length >= 1) setInsightMessage("훌륭합니다! 버릴 것을 명확히 분리하는 것이 구조화의 핵심입니다.");
+    if (bricks.length === 1 && connections.length === 0) setInsightMessage("첫 번째 블록이 캔버스에 놓였습니다. 마우스로 드래그하여 위치를 자유롭게 이동해 보세요.");
+    if (bricks.length === 3 && connections.length === 0) setInsightMessage("블록이 쌓이고 있습니다. 관련된 욕구와 불안은 서로 가까이 붙여보세요.");
+    if (bricks.filter(b => b.zone === 'discard').length >= 1 && connections.length === 0) setInsightMessage("훌륭합니다! 버릴 것을 명확히 분리하는 것이 구조화의 핵심입니다.");
     
     const desires = bricks.filter(b => b.type === 'desire');
     const anxieties = bricks.filter(b => b.type === 'anxiety');
     if (desires.length > 0 && anxieties.length > 0) {
       const exists = connections.some(c => c.from === desires[0].id && c.to === anxieties[0].id);
       if (!exists) {
-        setConnections(prev => [...prev, { id: Date.now().toString(), from: desires[0].id, to: anxieties[0].id, type: 'conflict' }]);
+        setConnections(prev => [...prev, { id: Date.now().toString() + Math.random().toString(36).substring(2, 9), from: desires[0].id, to: anxieties[0].id, type: 'conflict' }]);
         setInsightMessage(`'${desires[0].label}'과 '${anxieties[0].label}' 사이에 갈등 구조가 발견되었습니다. 빨간 점선으로 연결됩니다.`);
       }
     }
 
     const timer = setTimeout(() => setInsightMessage(null), 6000);
     return () => clearTimeout(timer);
-  }, [bricks]);
+  }, [bricks, connections]);
 
   const addBrick = (type: BrickType) => {
     const newBrick: Brick = {
-      id: Date.now().toString(),
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
       type,
       label: BRICK_DEF[type].name,
       x: window.innerWidth / 2 - 100 + (Math.random() * 40 - 20),
