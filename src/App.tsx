@@ -170,19 +170,21 @@ export default function App() {
   };
 
   const handleDragEnd = (id: string, info: any) => {
-    const x = info.point.x;
+    // Canvas coordinate space
+    const canvasWidth = window.innerWidth - 320 - 384; // width minus left(320) and right(384) sidebars
+    const canvasHeight = window.innerHeight;
+    
+    // x is relative to viewport, subtract left sidebar width to get canvas relative x
+    const x = info.point.x - 320;
     const y = info.point.y;
-    const width = window.innerWidth;
-    const height = window.innerHeight;
     
     let newZone: Brick['zone'] = 'none';
-    if (x > width - 400 && y < 300) newZone = 'keep';
-    else if (x > width - 400 && y > height - 300) newZone = 'discard';
-    else if (x > width / 2 - 200 && x < width / 2 + 200 && y > height / 2 - 200 && y < height / 2 + 200) newZone = 'core';
+    if (x < canvasWidth / 2 && y < canvasHeight / 2) newZone = 'core';
+    else if (x >= canvasWidth / 2 && y < canvasHeight / 2) newZone = 'keep';
+    else if (x < canvasWidth / 2 && y >= canvasHeight / 2) newZone = 'none'; // Experiment is 'none' for now to match types
+    else if (x >= canvasWidth / 2 && y >= canvasHeight / 2) newZone = 'discard';
 
-    // x needs offset because info.point is relative to viewport, but the canvas has a left sidebar offset.
-    // However, since canvas is absolute to screen, we subtract the sidebar width (320px).
-    updateBrick(id, { x: info.point.x - 320, y: info.point.y, zone: newZone });
+    updateBrick(id, { x: x, y: y, zone: newZone });
   };
 
   const handleFinish = async () => {
@@ -297,12 +299,33 @@ export default function App() {
             </div>
           )}
 
-          {/* Zones */}
-          <div className="absolute top-10 right-10 w-64 h-48 border-4 border-dashed border-emerald-300 bg-emerald-50/50 rounded-3xl flex items-center justify-center pointer-events-none z-0 opacity-50">
-             <span className="font-black text-emerald-400 text-2xl tracking-widest uppercase">Keep</span>
-          </div>
-          <div className="absolute bottom-10 right-10 w-64 h-48 border-4 border-dashed border-rose-300 bg-rose-50/50 rounded-3xl flex items-center justify-center pointer-events-none z-0 opacity-50">
-             <span className="font-black text-rose-400 text-2xl tracking-widest uppercase">Discard</span>
+          {/* 4 Quadrants Zones */}
+          <div className="absolute inset-0 pointer-events-none z-0">
+            {/* Horizontal Line */}
+            <div className="absolute top-1/2 left-0 w-full h-px bg-slate-200/50"></div>
+            {/* Vertical Line */}
+            <div className="absolute top-0 left-1/2 w-px h-full bg-slate-200/50"></div>
+            
+            {/* Top Left: Core */}
+            <div className="absolute top-8 left-8">
+              <div className="text-4xl font-black text-slate-200/50 uppercase tracking-widest">Core</div>
+              <div className="text-sm font-bold text-slate-300">내려놓을 수 없는 핵심</div>
+            </div>
+            {/* Top Right: Keep */}
+            <div className="absolute top-8 right-8 text-right">
+              <div className="text-4xl font-black text-emerald-200/50 uppercase tracking-widest">Keep</div>
+              <div className="text-sm font-bold text-emerald-300">유지하고 강화할 요소</div>
+            </div>
+            {/* Bottom Left: Experiment */}
+            <div className="absolute bottom-8 left-8">
+              <div className="text-4xl font-black text-indigo-200/50 uppercase tracking-widest">Try</div>
+              <div className="text-sm font-bold text-indigo-300">작게 실험해 볼 요소</div>
+            </div>
+            {/* Bottom Right: Discard */}
+            <div className="absolute bottom-8 right-8 text-right">
+              <div className="text-4xl font-black text-rose-200/50 uppercase tracking-widest">Discard</div>
+              <div className="text-sm font-bold text-rose-300">포기하거나 버릴 요소</div>
+            </div>
           </div>
 
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
@@ -398,6 +421,20 @@ export default function App() {
                       <p className="text-xs font-bold opacity-90 leading-relaxed bg-black/20 p-3 rounded-xl border border-black/10">
                         {CoreDef.desc}
                       </p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {(Object.keys(CORE_BRICKS) as CoreBrickType[]).map(key => {
+                          const kDef = CORE_BRICKS[key];
+                          return (
+                            <button 
+                              key={key} 
+                              onClick={() => setManualCore(key)}
+                              className={`px-2 py-1 rounded text-[10px] font-black transition-all border ${currentCore === key ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-white/70 border-white/30 hover:bg-white/10'}`}
+                            >
+                              {kDef.title}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </Brick3D>
                 </section>
@@ -586,20 +623,48 @@ export default function App() {
 
             {/* AI Interpretation */}
             {bricks.length > 0 && (
-              <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-2xl mt-8">
-                <h3 className="text-sm font-black text-indigo-600 mb-3 flex items-center gap-2"><Sparkles size={16}/> 퍼실리테이터의 해석</h3>
-                <p className="text-sm text-indigo-900 font-bold leading-relaxed">
-                  {connections.filter(c => c.type === 'conflict').length > 0 ? (
-                    `현재 캔버스는 강한 충돌 영역에서 발견된 마찰이 에너지를 소모시키고 있습니다. 전체적으로 '${CoreDef.title}'을(를) 추구하지만 현실의 제약과 부딪히는 과도기적 구조입니다. `
-                  ) : (
-                    `현재 캔버스에는 뚜렷한 마찰 요소가 보이지 않습니다. '${CoreDef.title}'을(를) 중심으로 비교적 안정된 구조를 그리고 있습니다. `
-                  )}
-                  {bricks.filter(b => b.zone === 'discard').length === 0 ? (
-                    `다만, '버릴 것(Discard)'에 대한 기준이 명확하지 않아 에너지가 분산될 우려가 있습니다.`
-                  ) : (
-                    `특히 버릴 것을 명확히 분리해낸 점이 다음 경로를 설계하는 데 큰 도움이 될 것입니다.`
-                  )}
-                </p>
+              <div className="bg-slate-50 border border-slate-200 p-8 rounded-2xl mt-12">
+                <h3 className="text-sm font-black text-indigo-600 mb-6 flex items-center gap-2"><Sparkles size={16}/> 캔버스 구조 분석</h3>
+                
+                <div className="space-y-6">
+                  <div className="flex gap-4">
+                    <div className="w-1.5 bg-indigo-500 rounded-full shrink-0"></div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-sm mb-1">핵심 동인 (Core Driver)</h4>
+                      <p className="text-sm text-slate-600 leading-relaxed">
+                        현재 당신을 움직이는 가장 큰 동력은 <b>'{CoreDef.title}'</b>입니다. {CoreDef.desc}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="w-1.5 bg-amber-500 rounded-full shrink-0"></div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-sm mb-1">에너지 누수 (Energy Leak)</h4>
+                      <p className="text-sm text-slate-600 leading-relaxed">
+                        {connections.filter(c => c.type === 'conflict').length > 0 ? (
+                          `캔버스에 드러난 강한 충돌이 의사결정을 지연시키고 있습니다. 상충하는 욕구들을 모두 충족하려는 시도가 에너지를 고갈시킬 수 있습니다.`
+                        ) : (
+                          `현재 캔버스에는 뚜렷한 가치 충돌이 보이지 않아, 결단만 내린다면 빠르게 실행으로 옮길 수 있는 에너지가 비축되어 있습니다.`
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="w-1.5 bg-rose-500 rounded-full shrink-0"></div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-sm mb-1">방향성 진단 (Direction)</h4>
+                      <p className="text-sm text-slate-600 leading-relaxed">
+                        {bricks.filter(b => b.zone === 'discard').length === 0 ? (
+                          `'버릴 것(Discard)'이 전혀 정의되지 않았습니다. 무엇을 포기할지 정하지 않으면, 새로운 것을 시도할 공간(Keep/Try)을 만들 수 없습니다.`
+                        ) : (
+                          `버려야 할 요소들을 명확히 시각화했습니다. 이제 남은 것은 '유지할 것'을 지키며 리스크를 줄이는 경로를 선택하는 것입니다.`
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
