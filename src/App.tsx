@@ -4,7 +4,7 @@ import {
   Box, Target, AlertTriangle, Lock, Users, Battery, DollarSign, 
   Briefcase, Heart, Activity, Search, Plus, X, ArrowRight, Grid, 
   LayoutDashboard, Shuffle, Map, Compass, ShieldAlert,
-  Layers, Sparkles, Link as LinkIcon, CheckCircle, Zap
+  Layers, Sparkles, Link as LinkIcon, CheckCircle, Zap, Hexagon
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
@@ -336,7 +336,7 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1, ...animateProps }}
                 transition={{ repeat: isConflict ? Infinity : 0, duration: 1 }}
-                style={{ x: brick.x, y: brick.y, position: 'absolute' }}
+                style={{ top: 0, left: 0, x: brick.x, y: brick.y, position: 'absolute' }}
                 className={`cursor-grab active:cursor-grabbing w-64 min-h-[140px] ${isActive ? 'z-50' : 'z-20'}`}
               >
                 <Brick3D type={brick.type} className="h-full">
