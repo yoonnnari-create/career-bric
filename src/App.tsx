@@ -472,6 +472,104 @@ export default function App() {
           </div>
         </section>
 
+        {/* New Assembly Summary Section */}
+        <section className="bg-white rounded-3xl p-10 border-[4px] border-b-[12px] border-r-[8px] border-slate-300 shadow-xl mt-16">
+          <h2 className="text-2xl font-black flex items-center gap-2 mb-8 pb-4 border-b-4 border-slate-100">
+            <Layers className="text-indigo-600" /> 나의 블록 조립 결과
+          </h2>
+          
+          <div className="space-y-8">
+            {/* Keep Zone Bricks */}
+            {bricks.filter(b => b.zone === 'keep').length > 0 && (
+              <div>
+                <h3 className="text-sm font-black text-emerald-500 uppercase tracking-widest mb-4">Keep (유지할 것)</h3>
+                <div className="flex flex-wrap gap-4">
+                  {bricks.filter(b => b.zone === 'keep').map(brick => {
+                    const def = BRICK_DEF[brick.type];
+                    const Icon = def.icon;
+                    return (
+                      <div key={brick.id} className="bg-emerald-50 border-2 border-emerald-200 p-4 rounded-xl shadow-sm min-w-[200px]">
+                        <div className="flex items-center gap-2 text-emerald-700 font-black text-sm mb-2"><Icon size={16}/> {def.name}</div>
+                        <p className="text-sm font-bold text-emerald-900">{brick.content || '(내용 없음)'}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Discard Zone Bricks */}
+            {bricks.filter(b => b.zone === 'discard').length > 0 && (
+              <div>
+                <h3 className="text-sm font-black text-rose-500 uppercase tracking-widest mb-4">Discard (버릴 것)</h3>
+                <div className="flex flex-wrap gap-4">
+                  {bricks.filter(b => b.zone === 'discard').map(brick => {
+                    const def = BRICK_DEF[brick.type];
+                    const Icon = def.icon;
+                    return (
+                      <div key={brick.id} className="bg-rose-50 border-2 border-rose-200 p-4 rounded-xl shadow-sm min-w-[200px]">
+                        <div className="flex items-center gap-2 text-rose-700 font-black text-sm mb-2"><Icon size={16}/> {def.name}</div>
+                        <p className="text-sm font-bold text-rose-900">{brick.content || '(내용 없음)'}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Conflicts */}
+            {connections.filter(c => c.type === 'conflict').length > 0 && (
+              <div>
+                <h3 className="text-sm font-black text-amber-500 uppercase tracking-widest mb-4">Conflicts (강한 충돌)</h3>
+                <div className="flex flex-col gap-3">
+                  {connections.filter(c => c.type === 'conflict').map(conn => {
+                    const b1 = bricks.find(b=>b.id===conn.from);
+                    const b2 = bricks.find(b=>b.id===conn.to);
+                    if (!b1 || !b2) return null;
+                    return (
+                      <div key={conn.id} className="bg-amber-50 border-2 border-amber-200 p-4 rounded-xl shadow-sm flex items-center justify-between max-w-xl">
+                        <div className="flex-1">
+                          <span className="text-xs font-black text-amber-600 bg-amber-100 px-2 py-1 rounded mb-1 inline-block">{b1.label}</span>
+                          <p className="text-sm font-bold text-amber-900">{b1.content || '(내용 없음)'}</p>
+                        </div>
+                        <Target size={24} className="text-amber-400 mx-4 shrink-0"/>
+                        <div className="flex-1 text-right">
+                          <span className="text-xs font-black text-amber-600 bg-amber-100 px-2 py-1 rounded mb-1 inline-block">{b2.label}</span>
+                          <p className="text-sm font-bold text-amber-900">{b2.content || '(내용 없음)'}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Other Bricks */}
+            {bricks.filter(b => b.zone !== 'keep' && b.zone !== 'discard' && !connections.some(c => c.from === b.id || c.to === b.id)).length > 0 && (
+              <div>
+                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Other Bricks (기타 요소)</h3>
+                <div className="flex flex-wrap gap-3">
+                  {bricks.filter(b => b.zone !== 'keep' && b.zone !== 'discard' && !connections.some(c => c.from === b.id || c.to === b.id)).map(brick => {
+                    const def = BRICK_DEF[brick.type];
+                    const Icon = def.icon;
+                    return (
+                      <div key={brick.id} className="bg-slate-100 border-2 border-slate-200 px-4 py-2 rounded-lg flex items-center gap-2">
+                        <Icon size={14} className="text-slate-500" />
+                        <span className="font-bold text-sm text-slate-700">{def.name}:</span>
+                        <span className="text-sm text-slate-600">{brick.content || '...'}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
+            {bricks.length === 0 && (
+              <p className="text-slate-500 font-bold text-center py-4">캔버스에 배치된 블록이 없습니다.</p>
+            )}
+          </div>
+        </section>
+
         <section className="bg-white rounded-3xl p-10 border-[4px] border-b-[12px] border-r-[8px] border-slate-300 shadow-xl mt-16">
           <h2 className="text-2xl font-black flex items-center gap-2 mb-8 pb-4 border-b-4 border-slate-100">
             <Shuffle className="text-indigo-600" /> 추천 조립 시나리오 (Path A/B)
