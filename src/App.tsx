@@ -33,25 +33,13 @@ const BRICK_DEF: Record<BrickType, { icon: any, bg: string, border: string, text
   recovery: { icon: Activity, bg: 'bg-teal-500', border: 'border-teal-700', text: 'text-white', name: '회복', desc: '재충전하는 방식' },
 };
 
-const CORE_BRICKS = {
+type CoreBrickType = 'stability' | 'meaning' | 'mastery' | 'autonomy';
+
+const CORE_BRICKS: Record<CoreBrickType, { title: string, icon: any, desc: string, color: string, border: string, glow: string }> = {
   stability: { title: '생존과 안정성', icon: ShieldAlert, desc: '현재 당신을 움직이는 가장 강력한 중심축은 생존과 안정성입니다. 불확실성을 최소화하고, 재무적/물리적 제약을 방어하려는 패턴이 뚜렷하게 나타납니다.', color: 'bg-slate-800', border: 'border-slate-950', glow: 'shadow-[0_0_60px_rgba(30,41,59,0.5)]' },
   meaning: { title: '의미와 연결', icon: Heart, desc: '지금 당신의 선택을 지배하는 핵심 축은 의미와 관계입니다. 단순한 보상이나 생존을 넘어, 내가 하는 일의 내적 가치와 타인과의 연결성을 깊게 탐색하고 있습니다.', color: 'bg-purple-600', border: 'border-purple-900', glow: 'shadow-[0_0_60px_rgba(147,51,234,0.5)]' },
   mastery: { title: '성취와 전문성', icon: Zap, desc: '현재 가장 강한 중심축은 성취와 전문성입니다. 일의 결과물, 스스로의 성장, 그리고 보유한 자원을 어떻게 폭발시킬 것인지가 모든 고민의 중심에 놓여 있습니다.', color: 'bg-blue-600', border: 'border-blue-900', glow: 'shadow-[0_0_60px_rgba(37,99,235,0.5)]' },
   autonomy: { title: '자율성과 회복', icon: Activity, desc: '지금 당신을 움직이는 거대한 축은 자율성과 에너지 회복입니다. 외부 시스템에 소모되기보다, 주도적으로 일과 삶의 주도권을 되찾으려는 강렬한 욕구가 보입니다.', color: 'bg-teal-500', border: 'border-teal-800', glow: 'shadow-[0_0_60px_rgba(20,184,166,0.5)]' }
-};
-
-const extractCoreBrick = (bricks: Brick[]) => {
-  const counts = { stability: 0, meaning: 0, mastery: 0, autonomy: 0 };
-  bricks.forEach(b => {
-    if (['money', 'constraint', 'anxiety'].includes(b.type)) counts.stability++;
-    else if (['desire', 'relationship', 'meaning'].includes(b.type)) counts.meaning++;
-    else if (['experience', 'work', 'energy'].includes(b.type)) counts.mastery++;
-    else if (['recovery'].includes(b.type)) counts.autonomy++;
-  });
-  
-  const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
-  const coreKey = sorted[0][1] > 0 ? sorted[0][0] : 'stability';
-  return CORE_BRICKS[coreKey as keyof typeof CORE_BRICKS];
 };
 
 // --- Reusable Block Component ---
@@ -90,6 +78,9 @@ export default function App() {
   const [view, setView] = useState<'landing' | 'workspace' | 'report'>('landing');
   const [bricks, setBricks] = useState<Brick[]>([]);
   const [activeBrick, setActiveBrick] = useState<string | null>(null);
+  const [userCoreBrick, setUserCoreBrick] = useState<CoreBrickType | null>(null);
+  const [showCoreModal, setShowCoreModal] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Auth State
@@ -120,6 +111,16 @@ export default function App() {
   const deleteBrick = (id: string) => {
     setBricks(prev => prev.filter(b => b.id !== id));
     if (activeBrick === id) setActiveBrick(null);
+  };
+
+  const handleGenerateReportClick = () => {
+    setShowCoreModal(true);
+  };
+
+  const handleCoreBrickSelect = (type: CoreBrickType) => {
+    setUserCoreBrick(type);
+    setShowCoreModal(false);
+    setView('report');
   };
 
   // --------------------------------------------------------
@@ -188,7 +189,7 @@ export default function App() {
         
         <p className="text-xl md:text-2xl text-slate-600 font-bold mb-12 max-w-2xl mx-auto leading-relaxed">
           단순한 정리가 아닙니다. 조각난 경험과 불안을 조립하여,<br/>
-          가장 중심에서 나를 이끄는 <b className="text-slate-900">삶의 중심축</b>을 구조화합니다.
+          가장 중심에서 나를 이끄는 <b className="text-slate-900">삶의 중심축</b>을 직접 선택하고 구조화합니다.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -222,7 +223,7 @@ export default function App() {
             조립된 블록 <span className="text-indigo-600 ml-1 font-black">{bricks.length}</span>개
           </div>
           <button 
-            onClick={() => setView('report')}
+            onClick={handleGenerateReportClick}
             disabled={bricks.length < 3}
             className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-black rounded-xl hover:bg-indigo-500 border-b-4 border-indigo-900 active:border-b-0 active:translate-y-[4px] disabled:opacity-50 disabled:active:border-b-4 disabled:active:translate-y-0 transition-all flex items-center gap-2 shadow-md"
           >
@@ -325,6 +326,60 @@ export default function App() {
           })}
         </div>
       </div>
+
+      {/* Core Brick Selection Modal */}
+      <AnimatePresence>
+        {showCoreModal && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-slate-50 w-full max-w-4xl rounded-3xl p-10 border-[4px] border-b-[12px] border-r-[8px] border-slate-300 shadow-2xl relative"
+            >
+              <button onClick={() => setShowCoreModal(false)} className="absolute top-6 right-6 p-2 bg-slate-200 text-slate-500 rounded-xl hover:bg-slate-300 hover:text-slate-900 transition-colors border-b-4 border-slate-400 active:border-b-0 active:translate-y-1">
+                <X size={24} />
+              </button>
+              
+              <div className="text-center mb-10">
+                <div className="inline-flex items-center justify-center p-4 bg-indigo-600 text-white rounded-2xl mb-4 border-b-4 border-indigo-900 shadow-md">
+                  <Hexagon size={32} />
+                </div>
+                <h2 className="text-3xl font-black text-slate-900 mb-2">당신의 삶을 지배하는 왕블럭은 무엇인가요?</h2>
+                <p className="text-slate-600 font-bold">리포트를 생성하기 전, 현재 캔버스에서 가장 거대한 영향력을 미치고 있는 중심축 하나를 직접 선택해 주세요.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {(Object.entries(CORE_BRICKS) as [CoreBrickType, typeof CORE_BRICKS[CoreBrickType]][]).map(([key, brick]) => {
+                  const Icon = brick.icon;
+                  return (
+                    <button 
+                      key={key}
+                      onClick={() => handleCoreBrickSelect(key)}
+                      className={`relative text-left p-6 rounded-2xl border-[3px] border-b-[8px] border-r-[6px] ${brick.color} ${brick.border} ${brick.glow} text-white hover:-translate-y-2 active:translate-y-2 active:border-b-[3px] transition-all group overflow-hidden`}
+                    >
+                      <BlockStuds bg={brick.color.replace('bg-', '')} border={brick.border.replace('border-', '')} large />
+                      <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
+                        <Icon size={120} />
+                      </div>
+                      <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm border border-white/30">
+                            <Icon size={24} />
+                          </div>
+                          <h3 className="text-2xl font-black">{brick.title}</h3>
+                        </div>
+                        <p className="text-sm font-bold opacity-90 leading-relaxed">{brick.desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 
@@ -332,13 +387,13 @@ export default function App() {
   // 3. REPORT VIEW (Structured Output)
   // --------------------------------------------------------
   const renderReport = () => {
-    // Extract insights & Core Brick
+    // Extract insights & Use Selected Core Brick
     const experiences = bricks.filter(b => b.type === 'experience' && b.content);
     const anxieties = bricks.filter(b => b.type === 'anxiety' && b.content);
     const constraints = bricks.filter(b => b.type === 'constraint' && b.content);
     const desires = bricks.filter(b => b.type === 'desire' && b.content);
     
-    const coreBrick = extractCoreBrick(bricks);
+    const coreBrick = CORE_BRICKS[userCoreBrick || 'stability'];
     const CoreIcon = coreBrick.icon;
 
     return (
@@ -394,13 +449,13 @@ export default function App() {
                 </p>
 
                 <div className="mt-10 grid md:grid-cols-2 gap-4 w-full">
-                  <div className="bg-black/20 p-5 rounded-2xl border border-white/10 text-left">
+                  <div className="bg-black/20 p-5 rounded-2xl border border-white/10 text-left border-b-4 border-black/40">
                     <h4 className="font-black text-white/80 mb-2 flex items-center gap-2"><Layers size={18}/> 중심 주변의 블록들</h4>
-                    <p className="text-sm font-bold opacity-90">당신의 캔버스에 놓인 빈도 높은 욕구와 불안, 제약 블록들이 모두 이 핵심 축을 보호하거나 달성하기 위해 연결되어 있습니다.</p>
+                    <p className="text-sm font-bold opacity-90">당신이 캔버스에 놓은 많은 욕구와 제약 블록들이 결국 스스로 선택하신 이 <b>{coreBrick.title}</b>을(를) 달성하거나 보호하기 위해 연결되어 있습니다.</p>
                   </div>
-                  <div className="bg-black/20 p-5 rounded-2xl border border-white/10 text-left">
+                  <div className="bg-black/20 p-5 rounded-2xl border border-white/10 text-left border-b-4 border-black/40">
                     <h4 className="font-black text-white/80 mb-2 flex items-center gap-2"><AlertTriangle size={18}/> 주요 충돌 발생</h4>
-                    <p className="text-sm font-bold opacity-90">이 거대한 중심축이 다른 욕구(예: {desires[0]?.content || '새로운 시도'})와 부딪히면서, 현재의 멈칫거림과 고민을 만들어내고 있습니다.</p>
+                    <p className="text-sm font-bold opacity-90">이 거대한 중심축이 주변의 다른 블록(예: {desires[0]?.content || '새로운 시도'})과 부딪히면서 지금의 멈칫거림과 고민을 만들어내고 있습니다.</p>
                   </div>
                 </div>
              </div>
@@ -434,7 +489,7 @@ export default function App() {
                 <h3 className="text-sm font-black text-rose-500 uppercase tracking-wider flex items-center gap-2"><AlertTriangle size={16}/> 병목 블록</h3>
                 <div className="p-5 bg-rose-50 border-4 border-rose-200 rounded-2xl shadow-inner">
                   <p className="text-sm text-rose-800 leading-relaxed font-black">
-                    현재 <b>{desires[0]?.content || "새로운 변화"}</b>를 원하지만, 동시에 <b>{anxieties[0]?.content || "불확실성"}</b>에 대한 불안이 Core Brick과 충돌하여 실행을 가로막고 있습니다.
+                    현재 <b>{desires[0]?.content || "새로운 변화"}</b>를 원하지만, 동시에 <b>{anxieties[0]?.content || "불확실성"}</b>에 대한 불안이 왕블럭과 충돌하여 실행을 가로막고 있습니다.
                   </p>
                 </div>
               </div>
@@ -457,13 +512,13 @@ export default function App() {
                   <span className="px-3 py-1.5 bg-indigo-100 text-indigo-700 text-xs font-black rounded-lg uppercase tracking-wider mb-4 inline-block border-b-2 border-indigo-200">Option A. Pivot</span>
                   <h3 className="text-2xl font-black text-slate-900 mb-2">핵심 자원 기반의 직무 피벗</h3>
                   <p className="text-slate-500 font-bold mb-6 text-sm leading-relaxed">
-                    기존 경험({experiences[0]?.content || '현재 역량'}) 블록을 살리되, Core Brick의 손실을 막으며 새로운 도메인으로 이동.
+                    기존 경험({experiences[0]?.content || '현재 역량'}) 블록을 살리되, <b>{coreBrick.title}</b>의 손실을 막으며 새로운 도메인으로 이동.
                   </p>
                   
                   <div className="space-y-4">
                     <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-100">
                       <div className="text-xs font-black text-emerald-600 mb-1">방어 가능한 제약 (PROS)</div>
-                      <div className="text-sm font-bold text-slate-700">{constraints[0]?.content || 'Core Brick 유지 가능성'}</div>
+                      <div className="text-sm font-bold text-slate-700">왕블럭({coreBrick.title}) 유지 가능성</div>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-100">
                       <div className="text-xs font-black text-rose-600 mb-1">감수해야 할 리스크 (CONS)</div>
@@ -483,7 +538,7 @@ export default function App() {
                   <span className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-black rounded-lg uppercase tracking-wider mb-4 inline-block border-b-2 border-slate-200">Option B. Stay & Side</span>
                   <h3 className="text-2xl font-black text-slate-900 mb-2">현직 유지 + 워라밸 확보</h3>
                   <p className="text-slate-500 font-bold mb-6 text-sm leading-relaxed">
-                    현재 직장에서 에너지를 조율하고, Core Brick을 완벽히 보호하며 나머지 에너지를 개인 성장에 투자하는 전략.
+                    현재 직장에서 에너지를 조율하고, <b>{coreBrick.title}</b>을 완벽히 보호하며 나머지 에너지를 개인 성장에 투자하는 전략.
                   </p>
                   
                   <div className="space-y-4">
@@ -511,14 +566,14 @@ export default function App() {
                </p>
              </div>
              <div className="md:w-2/3 z-10 w-full space-y-4">
-               <div className="flex items-start gap-4 bg-white/10 p-5 rounded-2xl border-2 border-white/20 backdrop-blur-sm">
+               <div className="flex items-start gap-4 bg-white/10 p-5 rounded-2xl border-2 border-white/20 backdrop-blur-sm border-b-4 border-r-4">
                  <div className="w-10 h-10 rounded-xl bg-white text-indigo-900 flex items-center justify-center shrink-0 font-black shadow-lg border-b-4 border-indigo-200">1</div>
                  <div>
                    <h4 className="font-black text-white mb-1.5 text-lg">관심 경로의 현직자와 가벼운 커피챗</h4>
-                   <p className="text-sm text-indigo-100 font-bold leading-relaxed">LinkedIn을 통해 내가 고려하는 직무(Option A)로 이직한 분에게 메시지를 보내 현실적인 이야기를 들어봅니다.</p>
+                   <p className="text-sm text-indigo-100 font-bold leading-relaxed">내가 고려하는 직무(Option A)로 이직한 분에게 메시지를 보내 현실적인 이야기를 들어봅니다.</p>
                  </div>
                </div>
-               <div className="flex items-start gap-4 bg-white/10 p-5 rounded-2xl border-2 border-white/20 backdrop-blur-sm">
+               <div className="flex items-start gap-4 bg-white/10 p-5 rounded-2xl border-2 border-white/20 backdrop-blur-sm border-b-4 border-r-4">
                  <div className="w-10 h-10 rounded-xl bg-teal-400 text-teal-950 flex items-center justify-center shrink-0 font-black shadow-lg border-b-4 border-teal-600">2</div>
                  <div>
                    <h4 className="font-black text-white mb-1.5 text-lg">나의 '경험 블록'을 한 장으로 조립하기</h4>
