@@ -32,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 1. 관리자에게 보내는 알림 이메일
     const adminMailOptions = {
-      from: `"CareerBrick Admin" <${process.env.GMAIL_USER}>`,
+      from: `"Lifebric Admin" <${process.env.GMAIL_USER}>`,
       to: 'yoonnnari@gmail.com', // 관리자 이메일
       subject: subject || '[SAI] 새로운 워크북 답변이 도착했습니다',
       text: text,
@@ -45,13 +45,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let userInfo = null;
     if (userEmail) {
       const userMailOptions = {
-        from: `"CareerBrick Team" <${process.env.GMAIL_USER}>`,
+        from: `"Lifebric Team" <${process.env.GMAIL_USER}>`,
         to: userEmail,
-        subject: `[CareerBrick] ${userName || '고객'}님의 답변이 성공적으로 기록되었습니다.`,
+        subject: `[Lifebric] ${userName || '고객'}님의 답변이 성공적으로 기록되었습니다.`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background: #ffffff; color: #333; border: 1px solid #eee; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
             <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #a855f7; margin: 0; font-size: 28px;">CareerBrick</h1>
+              <h1 style="color: #a855f7; margin: 0; font-size: 28px;">Lifebric</h1>
             </div>
             <h2 style="color: #111; font-size: 22px; margin-bottom: 20px;">답변이 성공적으로 기록되었습니다! 🎉</h2>
             <p style="font-size: 16px; line-height: 1.6; color: #555; margin-bottom: 20px;">
@@ -66,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             </div>
             <p style="font-size: 15px; color: #888; text-align: center; border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px;">
               본 메일은 발신 전용입니다. 문의사항이 있으시면 고객센터로 연락해주세요.<br/>
-              © 2026 CareerBrick Team.
+              © 2026 Lifebric Team.
             </p>
           </div>
         `,

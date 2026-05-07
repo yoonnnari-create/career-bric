@@ -95,7 +95,7 @@ export default function MyPage() {
               <Blocks size={24} />
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tighter group-hover:text-purple-400 transition-colors">CareerBrick</h1>
+              <h1 className="text-2xl font-black tracking-tighter group-hover:text-purple-400 transition-colors">Lifebric</h1>
               <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">마이페이지</p>
             </div>
           </div>
