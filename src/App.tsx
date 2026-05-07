@@ -1,546 +1,434 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Compass, 
-  ArrowRight, 
-  ArrowLeft, 
-  Check, 
-  Layers, 
-  Target, 
-  Briefcase, 
-  AlertCircle, 
-  RefreshCw,
-  MapPin,
-  ListChecks,
-  Lightbulb,
-  X
+  Box, Target, AlertTriangle, Lock, Users, Battery, DollarSign, 
+  Briefcase, Heart, Activity, Search, Plus, X, ArrowRight, Grid, 
+  LayoutDashboard, Shuffle, Map, Compass, CheckCircle2,
+  Minimize2, Share2, Download
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
-// --- Data & Options ---
-const CONCERN_OPTIONS = [
-  "역량의 정체 (더 이상 성장하지 않는 느낌)",
-  "번아웃 및 체력/정신적 에너지고갈",
-  "조직 문화 및 리더십과의 불일치",
-  "불투명한 비전 (이 일을 계속해도 될까?)",
-  "보상 수준에 대한 불만족",
-  "역할과 책임(R&R)의 모호함",
-  "물리적 시간 부족 (일과 삶의 불균형)"
-];
+// --- Types & Data Definitions ---
+type BrickType = 'experience' | 'desire' | 'anxiety' | 'constraint' | 'relationship' | 'energy' | 'money' | 'work' | 'meaning' | 'recovery';
 
-const CONDITION_OPTIONS = [
-  "현재 수준의 연봉 유지 (타협 불가)",
-  "출퇴근 거리 및 물리적 시간 확보",
-  "주도적인 업무 환경 (마이크로매니징 배제)",
-  "안정적인 고용 상태",
-  "명확한 평가와 보상 체계",
-  "수평적이고 유연한 커뮤니케이션",
-  "원격 근무 또는 유연 근무제 보장"
-];
-
-const DIRECTION_OPTIONS = [
-  { id: 'expert', title: "전문성 심화 (Mastery)", desc: "현재 직무에서 대체 불가능한 시니어/전문가로 성장" },
-  { id: 'pivot', title: "인접 직무 전환 (Pivot)", desc: "기존 자원을 활용하여 새로운 역할이나 도메인으로 확장" },
-  { id: 'balance', title: "라이프 밸런스 (Balance)", desc: "일의 비중을 조율하고 개인의 삶이나 다른 프로젝트에 집중" },
-  { id: 'independent', title: "독립 및 창업 (Independence)", desc: "조직을 벗어나 주도적으로 1인 기업이나 비즈니스 시작" }
-];
-
-const RESOURCE_SUGGESTIONS = [
-  "B2B 세일즈/영업망", "데이터 분석 역량", "프로젝트 관리(PM)", "이해관계자 조율", 
-  "비즈니스 기획력", "글쓰기/문서화", "예산 관리 및 재무 지식", "외국어 커뮤니케이션"
-];
-
-// --- Interfaces ---
-interface FormData {
-  currentState: string;
-  concerns: string[];
-  resources: string[];
-  nonNegotiables: string[];
-  desiredDirection: string;
+interface Brick {
+  id: string;
+  type: BrickType;
+  label: string;
+  x: number;
+  y: number;
+  content: string;
 }
 
+const BRICK_DEF: Record<BrickType, { icon: any, color: string, border: string, name: string, desc: string }> = {
+  experience: { icon: Briefcase, color: 'bg-slate-800 text-white', border: 'border-slate-800', name: '경험', desc: '과거에 쌓은 실질적 역량' },
+  desire: { icon: Heart, color: 'bg-indigo-100 text-indigo-700', border: 'border-indigo-200', name: '욕구', desc: '가장 끌리는 변화 방향' },
+  anxiety: { icon: AlertTriangle, color: 'bg-rose-100 text-rose-700', border: 'border-rose-200', name: '불안', desc: '나를 멈칫하게 만드는 요소' },
+  constraint: { icon: Lock, color: 'bg-slate-200 text-slate-700', border: 'border-slate-300', name: '제약', desc: '포기할 수 없는 현실 조건' },
+  relationship: { icon: Users, color: 'bg-orange-100 text-orange-700', border: 'border-orange-200', name: '관계', desc: '나에게 영향을 주는 사람들' },
+  energy: { icon: Battery, color: 'bg-emerald-100 text-emerald-700', border: 'border-emerald-200', name: '에너지', desc: '나의 체력과 몰입 가능성' },
+  money: { icon: DollarSign, color: 'bg-green-100 text-green-700', border: 'border-green-200', name: '수익', desc: '필요한 경제적 보상' },
+  work: { icon: Target, color: 'bg-blue-100 text-blue-700', border: 'border-blue-200', name: '일', desc: '업무의 방식과 태도' },
+  meaning: { icon: Search, color: 'bg-purple-100 text-purple-700', border: 'border-purple-200', name: '의미', desc: '내 삶의 가치와 목적' },
+  recovery: { icon: Activity, color: 'bg-teal-100 text-teal-700', border: 'border-teal-200', name: '회복', desc: '재충전하는 방식' },
+};
+
 export default function App() {
-  const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState<FormData>({
-    currentState: '',
-    concerns: [],
-    resources: [],
-    nonNegotiables: [],
-    desiredDirection: ''
-  });
+  const [view, setView] = useState<'landing' | 'workspace' | 'report'>('landing');
+  const [bricks, setBricks] = useState<Brick[]>([]);
+  const [activeBrick, setActiveBrick] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const [resourceInput, setResourceInput] = useState('');
-
-  // Authentication State
+  // Auth State
   const [session, setSession] = useState<any>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsAuthLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    supabase.auth.onAuthStateChange((_event, session) => setSession(session));
   }, []);
 
-  const handleNext = () => setStep(s => Math.min(s + 1, 7));
-  const handlePrev = () => setStep(s => Math.max(s - 1, 1));
-
-  const toggleSelection = (field: keyof FormData, value: string) => {
-    setFormData(prev => {
-      const arr = prev[field] as string[];
-      if (arr.includes(value)) {
-        return { ...prev, [field]: arr.filter(item => item !== value) };
-      } else {
-        return { ...prev, [field]: [...arr, value] };
-      }
-    });
+  const addBrick = (type: BrickType) => {
+    const newBrick: Brick = {
+      id: Date.now().toString(),
+      type,
+      label: BRICK_DEF[type].name,
+      x: Math.random() * 200 + 100, // Random initial X
+      y: Math.random() * 200 + 100, // Random initial Y
+      content: ''
+    };
+    setBricks(prev => [...prev, newBrick]);
+    setActiveBrick(newBrick.id);
   };
 
-  const addResource = (res: string) => {
-    if (!res.trim()) return;
-    if (!formData.resources.includes(res.trim())) {
-      setFormData(prev => ({ ...prev, resources: [...prev.resources, res.trim()] }));
-    }
-    setResourceInput('');
+  const updateBrickContent = (id: string, content: string) => {
+    setBricks(prev => prev.map(b => b.id === id ? { ...b, content } : b));
   };
 
-  const removeResource = (res: string) => {
-    setFormData(prev => ({ ...prev, resources: prev.resources.filter(r => r !== res) }));
+  const deleteBrick = (id: string) => {
+    setBricks(prev => prev.map(b => b.id === id ? { ...b, content: '' } : b)); // fade out logic if needed, simple filter for now
+    setBricks(prev => prev.filter(b => b.id !== id));
+    if (activeBrick === id) setActiveBrick(null);
   };
 
-  const renderStepContent = () => {
-    switch (step) {
-      case 1:
-        return (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900">현재 상태를 정의해 주세요</h2>
-              <p className="text-slate-500">막연한 상황을 한 줄의 문장으로 명확히 규정하는 것부터 시작합니다.</p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-              <label className="block text-sm font-semibold text-slate-700">지금 나의 상황 (예: 5년 차 기획자, 번아웃으로 휴식 중)</label>
-              <textarea 
-                value={formData.currentState}
-                onChange={e => setFormData({...formData, currentState: e.target.value})}
-                placeholder="현재 직무, 연차, 그리고 직면한 가장 큰 화두를 자유롭게 적어주세요."
-                className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
-              />
-            </div>
-          </motion.div>
-        );
-      case 2:
-        return (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900">반복되는 고민의 패턴</h2>
-              <p className="text-slate-500">주기적으로 나를 괴롭히거나 머릿속을 맴도는 고민들을 선택해 주세요. (다중 선택 가능)</p>
-            </div>
-            <div className="grid gap-3">
-              {CONCERN_OPTIONS.map(option => {
-                const isSelected = formData.concerns.includes(option);
-                return (
-                  <button
-                    key={option}
-                    onClick={() => toggleSelection('concerns', option)}
-                    className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${
-                      isSelected 
-                        ? 'bg-indigo-50 border-indigo-200 text-indigo-900 shadow-sm' 
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className={`w-5 h-5 rounded flex items-center justify-center border ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
-                      {isSelected && <Check size={14} />}
-                    </div>
-                    <span className="font-medium text-sm md:text-base">{option}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        );
-      case 3:
-        return (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900">내가 가진 자원(Resource) 정리</h2>
-              <p className="text-slate-500">경험을 통해 획득한 기술, 네트워크, 태도 등 확실한 나의 무기를 적어주세요.</p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-              <div className="flex flex-wrap gap-2">
-                {formData.resources.map(res => (
-                  <span key={res} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg border border-slate-200">
-                    {res}
-                    <button onClick={() => removeResource(res)} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>
-                  </span>
-                ))}
-              </div>
+  // --------------------------------------------------------
+  // 1. LANDING VIEW
+  // --------------------------------------------------------
+  const renderLanding = () => (
+    <div className="min-h-screen bg-white relative overflow-hidden flex flex-col items-center justify-center">
+      {/* Background Grid Pattern */}
+      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
+           style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      
+      {/* Floating Animated Bricks */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <motion.div 
+          animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/4 left-1/4 p-6 bg-slate-800 text-white rounded-2xl shadow-xl rotate-12 backdrop-blur-sm opacity-90"
+        >
+          <div className="flex items-center gap-3 font-bold"><Briefcase /> B2B 기획 (경험)</div>
+        </motion.div>
+        
+        <motion.div 
+          animate={{ y: [0, 30, 0], rotate: [0, -10, 0] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          className="absolute top-1/3 right-1/4 p-5 bg-indigo-100 text-indigo-700 rounded-2xl shadow-lg -rotate-6 border border-indigo-200"
+        >
+          <div className="flex items-center gap-3 font-bold"><Heart /> 주도적인 삶 (욕구)</div>
+        </motion.div>
 
-              <div className="flex gap-2">
-                <input 
-                  type="text"
-                  value={resourceInput}
-                  onChange={e => setResourceInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addResource(resourceInput)}
-                  placeholder="예: 데이터 기반 의사결정"
-                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                />
-                <button 
-                  onClick={() => addResource(resourceInput)}
-                  className="px-6 py-3 bg-slate-800 text-white font-medium rounded-xl hover:bg-slate-700 transition-colors text-sm"
-                >
-                  추가
-                </button>
-              </div>
+        <motion.div 
+          animate={{ x: [0, 20, 0], y: [0, 15, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute bottom-1/4 left-1/3 p-4 bg-rose-100 text-rose-700 rounded-2xl shadow-md border border-rose-200"
+        >
+          <div className="flex items-center gap-2 font-bold text-sm"><AlertTriangle size={18}/> 불확실성 (불안)</div>
+        </motion.div>
+        
+        <motion.div 
+          animate={{ x: [0, -15, 0], y: [0, -15, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+          className="absolute bottom-1/3 right-1/3 p-4 bg-slate-200 text-slate-700 rounded-2xl shadow-md border border-slate-300"
+        >
+          <div className="flex items-center gap-2 font-bold text-sm"><Lock size={18}/> 수도권 거주 (제약)</div>
+        </motion.div>
+        
+        {/* Connecting Lines SVG */}
+        <svg className="absolute inset-0 w-full h-full stroke-slate-300 stroke-[2] opacity-50" style={{ fill: 'none' }}>
+          <motion.path d="M 25vw 25vh Q 50vw 50vh 75vw 33vh" animate={{ pathLength: [0, 1, 0] }} transition={{ duration: 8, repeat: Infinity }} strokeDasharray="5,5" />
+          <motion.path d="M 33vw 75vh Q 50vw 50vh 66vw 66vh" animate={{ pathLength: [0, 1, 0] }} transition={{ duration: 6, repeat: Infinity, delay: 2 }} strokeDasharray="5,5" />
+        </svg>
+      </div>
 
-              <div className="pt-4 border-t border-slate-100">
-                <p className="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">추천 키워드 (클릭하여 추가)</p>
-                <div className="flex flex-wrap gap-2">
-                  {RESOURCE_SUGGESTIONS.map(s => (
-                    <button 
-                      key={s} 
-                      onClick={() => addResource(s)}
-                      className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
-                    >
-                      + {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        );
-      case 4:
-        return (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900">절대 포기할 수 없는 조건 (제약)</h2>
-              <p className="text-slate-500">다음 경로를 선택할 때 반드시 지켜져야 하는 핵심 기준을 2~3개만 선택해 주세요.</p>
-            </div>
-            <div className="grid gap-3">
-              {CONDITION_OPTIONS.map(option => {
-                const isSelected = formData.nonNegotiables.includes(option);
-                return (
-                  <button
-                    key={option}
-                    onClick={() => toggleSelection('nonNegotiables', option)}
-                    className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-all ${
-                      isSelected 
-                        ? 'bg-slate-800 border-slate-800 text-white shadow-md' 
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className={`w-5 h-5 rounded flex items-center justify-center border ${isSelected ? 'border-white text-white' : 'border-slate-300'}`}>
-                      {isSelected && <Check size={14} />}
-                    </div>
-                    <span className="font-medium text-sm md:text-base">{option}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        );
-      case 5:
-        return (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900">가장 끌리는 변화의 방향</h2>
-              <p className="text-slate-500">현재 시점에서 본인이 가장 갈망하는 다음 단계의 형태를 하나만 선택해 주세요.</p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {DIRECTION_OPTIONS.map(dir => (
-                <button
-                  key={dir.id}
-                  onClick={() => setFormData({...formData, desiredDirection: dir.id})}
-                  className={`p-6 rounded-2xl border text-left transition-all flex flex-col gap-2 ${
-                    formData.desiredDirection === dir.id 
-                      ? 'bg-indigo-50 border-indigo-300 shadow-md ring-1 ring-indigo-500' 
-                      : 'bg-white border-slate-200 hover:border-indigo-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <span className={`font-bold text-lg ${formData.desiredDirection === dir.id ? 'text-indigo-900' : 'text-slate-800'}`}>
-                    {dir.title}
-                  </span>
-                  <span className={`text-sm leading-relaxed ${formData.desiredDirection === dir.id ? 'text-indigo-700' : 'text-slate-500'}`}>
-                    {dir.desc}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        );
-      case 6:
-        // Result Dashboard Generation
-        return (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
-            {/* Report Header */}
-            <div className="pb-8 border-b border-slate-200">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold uppercase tracking-wider mb-4">
-                <MapPin size={14} /> 경로 정리 리포트
-              </div>
-              <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 mb-4">
-                구조화된 선택지 보드
-              </h2>
-              <p className="text-lg text-slate-600 leading-relaxed max-w-2xl">
-                작성하신 정보를 바탕으로 현재 상태를 요약하고, 현실적으로 선택 가능한 경로들을 비교 분석했습니다.
-              </p>
-            </div>
+      <div className="relative z-10 max-w-4xl mx-auto px-6 text-center mt-12">
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-sm font-bold tracking-wide border border-indigo-200 mb-8 shadow-sm">
+          <LayoutDashboard size={16} />
+          Transition Navigation Interface
+        </div>
+        
+        <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight leading-[1.1] mb-8">
+          복잡한 삶을,<br/>
+          정리 가능한 <span className="text-indigo-600 bg-indigo-50 px-2 rounded-lg">블록</span>으로.
+        </h1>
+        
+        <p className="text-xl md:text-2xl text-slate-500 font-medium mb-12 max-w-2xl mx-auto leading-relaxed">
+          Lifebric은 삶의 요소들을 블록처럼 정리하고 연결하여<br/>
+          현실적인 다음 경로를 탐색할 수 있도록 돕는 <b className="text-slate-800">구조화 플랫폼</b>입니다.
+        </p>
 
-            {/* Current State Summary */}
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                <div className="flex items-center gap-2 text-slate-400 font-bold text-sm uppercase tracking-wider"><Target size={16}/> 핵심 자원</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {formData.resources.slice(0, 3).map(r => (
-                    <span key={r} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-sm font-medium">{r}</span>
-                  ))}
-                  {formData.resources.length === 0 && <span className="text-slate-400 text-sm">입력된 자원이 없습니다.</span>}
-                </div>
-              </div>
-              
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                <div className="flex items-center gap-2 text-slate-400 font-bold text-sm uppercase tracking-wider"><AlertCircle size={16}/> 반복 패턴 (고민)</div>
-                <div className="text-slate-700 text-sm leading-relaxed font-medium">
-                  {formData.concerns[0] || '입력된 패턴이 없습니다.'}
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                <div className="flex items-center gap-2 text-slate-400 font-bold text-sm uppercase tracking-wider"><ListChecks size={16}/> 필수 제약 조건</div>
-                <ul className="text-slate-700 text-sm leading-relaxed font-medium space-y-1">
-                  {formData.nonNegotiables.slice(0,2).map(n => <li key={n}>• {n}</li>)}
-                  {formData.nonNegotiables.length === 0 && <li className="text-slate-400">조건 없음</li>}
-                </ul>
-              </div>
-            </div>
-
-            {/* Path Comparisons */}
-            <div className="space-y-6">
-              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <Compass className="text-indigo-500" /> 현실적인 다음 경로 비교
-              </h3>
-              
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Path A */}
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col h-full">
-                  <div className="bg-slate-50 p-5 border-b border-slate-100 flex justify-between items-start">
-                    <div>
-                      <div className="text-xs font-bold text-indigo-600 mb-1 tracking-wider uppercase">Path A. 마스터 트랙</div>
-                      <h4 className="font-bold text-lg text-slate-900">현 직무 전문성 극대화</h4>
-                    </div>
-                    <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-md">난이도: 中</span>
-                  </div>
-                  <div className="p-5 flex-1 flex flex-col gap-4">
-                    <div>
-                      <div className="text-xs font-bold text-slate-400 mb-2">장점 (PROS)</div>
-                      <ul className="text-sm text-slate-700 space-y-1.5">
-                        <li>• 현재 보유한 <b>핵심 자원</b>을 가장 빠르게 수익/성장에 활용 가능</li>
-                        <li>• 이직 시 연봉 방어 및 상승에 유리</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-400 mb-2">리스크 (CONS)</div>
-                      <ul className="text-sm text-slate-700 space-y-1.5">
-                        <li>• <b>반복되는 고민 패턴</b>(번아웃 등)이 해소되지 않을 확률 높음</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Path B */}
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col h-full">
-                  <div className="bg-slate-50 p-5 border-b border-slate-100 flex justify-between items-start">
-                    <div>
-                      <div className="text-xs font-bold text-purple-600 mb-1 tracking-wider uppercase">Path B. 피벗 트랙</div>
-                      <h4 className="font-bold text-lg text-slate-900">인접 직무/도메인 전환</h4>
-                    </div>
-                    <span className="px-2.5 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-md">난이도: 高</span>
-                  </div>
-                  <div className="p-5 flex-1 flex flex-col gap-4">
-                    <div>
-                      <div className="text-xs font-bold text-slate-400 mb-2">장점 (PROS)</div>
-                      <ul className="text-sm text-slate-700 space-y-1.5">
-                        <li>• 새로운 환경에서 동기부여 및 <b>시야 확장</b> 가능</li>
-                        <li>• 필수 제약 조건을 일부 타협하면 이직 기회 증가</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-400 mb-2">리스크 (CONS)</div>
-                      <ul className="text-sm text-slate-700 space-y-1.5">
-                        <li>• 초기 학습 곡선 발생 및 단기적 성과 증명 압박</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Items */}
-            <div className="bg-indigo-900 rounded-3xl p-8 md:p-10 text-white shadow-xl relative overflow-hidden mt-12">
-              <div className="absolute top-0 right-0 p-8 opacity-10">
-                <Target size={120} />
-              </div>
-              <div className="relative z-10">
-                <h3 className="text-xl md:text-2xl font-bold mb-6 flex items-center gap-2">
-                  <Lightbulb className="text-indigo-300" /> 다음 행동 제안 (Next Steps)
-                </h3>
-                <div className="grid md:grid-cols-2 gap-8">
-                  <div>
-                    <h4 className="text-indigo-200 font-semibold mb-3 text-sm tracking-wider uppercase">🧪 2주 안에 가능한 작은 실험</h4>
-                    <ul className="space-y-3">
-                      <li className="flex items-start gap-2 bg-indigo-800/50 p-3 rounded-lg border border-indigo-700/50 text-sm leading-relaxed">
-                        <span className="text-indigo-300 mt-0.5">•</span>
-                        타겟으로 하는 경로(A 또는 B)에 있는 사람과 30분 커피챗(콜드메일) 진행하기
-                      </li>
-                      <li className="flex items-start gap-2 bg-indigo-800/50 p-3 rounded-lg border border-indigo-700/50 text-sm leading-relaxed">
-                        <span className="text-indigo-300 mt-0.5">•</span>
-                        내 핵심 자원 3가지를 증명할 수 있는 '원페이지 포트폴리오' 작성해보기
-                      </li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="text-indigo-200 font-semibold mb-3 text-sm tracking-wider uppercase">🗑️ 지금 당장 버려도 되는 선택지</h4>
-                    <ul className="space-y-3">
-                      <li className="flex items-start gap-2 bg-slate-800/50 p-3 rounded-lg border border-slate-700/50 text-sm leading-relaxed text-slate-300">
-                        <span className="text-slate-500 mt-0.5">✕</span>
-                        아무런 조건 없이 단순히 '쉬고 싶다'는 생각으로 퇴사부터 지르는 것
-                      </li>
-                      <li className="flex items-start gap-2 bg-slate-800/50 p-3 rounded-lg border border-slate-700/50 text-sm leading-relaxed text-slate-300">
-                        <span className="text-slate-500 mt-0.5">✕</span>
-                        나의 필수 조건을 100% 만족시키는 유토피아적 회사가 있을 것이란 환상
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-center pt-8">
-               <button 
-                onClick={() => setStep(1)}
-                className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 font-medium transition-colors shadow-sm"
-               >
-                 <RefreshCw size={16} /> 다시 분석하기
-               </button>
-            </div>
-
-          </motion.div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  if (!session && !isAuthLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
-        <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-slate-200 shadow-xl text-center space-y-8">
-          <div className="inline-flex items-center justify-center p-4 bg-indigo-50 text-indigo-600 rounded-2xl mb-2">
-            <Compass size={40} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight mb-3">
-              전환기 네비게이션 도구
-            </h1>
-            <p className="text-slate-500 leading-relaxed text-sm">
-              막연한 고민을 구조화하여 다음 선택지를 정리합니다.<br/>
-              지금의 경험과 조건을 정리하고 현실적인 경로를 탐색해보세요.
-            </p>
-          </div>
-          
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <button 
-            onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-50 transition-all shadow-sm"
+            onClick={() => setView('workspace')}
+            className="w-full sm:w-auto px-8 py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-indigo-600 transition-all hover:shadow-xl hover:shadow-indigo-500/20 hover:-translate-y-1 flex items-center justify-center gap-3 text-lg"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-              <path d="M1 1h22v22H1z" fill="none"/>
-            </svg>
-            Google 계정으로 시작하기
+            내 블록 정리하기 <ArrowRight size={20} />
           </button>
         </div>
+        
+        <div className="mt-20 text-slate-400 font-medium text-sm flex items-center justify-center gap-6">
+          <span className="flex items-center gap-2"><CheckCircle2 size={16}/> 취업 플랫폼 아님</span>
+          <span className="flex items-center gap-2"><CheckCircle2 size={16}/> 심리테스트 아님</span>
+          <span className="flex items-center gap-2"><CheckCircle2 size={16}/> 오직 구조화와 정리를 위해</span>
+        </div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 flex flex-col">
-      {/* Navbar */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 font-bold text-lg tracking-tight text-slate-800">
-            <div className="bg-indigo-600 text-white p-1.5 rounded-lg">
-              <Compass size={20} />
-            </div>
-            <span>Lifebric</span>
+  // --------------------------------------------------------
+  // 2. WORKSPACE VIEW (Canvas)
+  // --------------------------------------------------------
+  const renderWorkspace = () => (
+    <div className="h-screen bg-[#f8fafc] flex flex-col overflow-hidden relative" style={{ backgroundImage: 'radial-gradient(#e2e8f0 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
+      
+      {/* Workspace Header */}
+      <header className="h-14 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 z-40 shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setView('landing')} className="text-slate-400 hover:text-slate-700 transition-colors">
+            <LayoutDashboard size={20} />
+          </button>
+          <h1 className="font-bold text-slate-800 tracking-tight text-lg">Lifebric Workspace</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-md flex items-center gap-2">
+            블록 <span className="text-indigo-600">{bricks.length}</span>개
           </div>
-          
-          <div className="flex items-center gap-4">
-            {step < 6 && (
-              <div className="text-sm font-semibold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
-                Step {step} <span className="text-slate-300">/</span> 5
-              </div>
-            )}
-            <button 
-              onClick={() => supabase.auth.signOut()}
-              className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-            >
-              로그아웃
-            </button>
-          </div>
+          <button 
+            onClick={() => setView('report')}
+            disabled={bricks.length < 3}
+            className="px-5 py-1.5 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <Map size={16} /> 구조화 리포트 생성
+          </button>
         </div>
       </header>
 
-      {/* Progress Bar */}
-      {step < 6 && (
-        <div className="h-1 bg-slate-100 w-full">
-          <motion.div 
-            className="h-full bg-indigo-600"
-            initial={{ width: 0 }}
-            animate={{ width: `${(step / 5) * 100}%` }}
-            transition={{ ease: "easeInOut" }}
-          />
-        </div>
-      )}
-
-      {/* Main Content Form */}
-      <main className="flex-1 max-w-3xl mx-auto w-full px-6 py-12 pb-32">
-        <AnimatePresence mode="wait">
-          {renderStepContent()}
-        </AnimatePresence>
-      </main>
-
-      {/* Footer Navigation */}
-      {step < 6 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-40">
-          <div className="max-w-3xl mx-auto flex justify-between items-center">
-            <button
-              onClick={handlePrev}
-              disabled={step === 1}
-              className="px-6 py-3 text-slate-500 font-medium disabled:opacity-30 hover:bg-slate-50 rounded-xl transition-colors flex items-center gap-2"
-            >
-              <ArrowLeft size={18} /> 이전
-            </button>
-            <button
-              onClick={handleNext}
-              className="px-8 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 hover:shadow-lg transition-all flex items-center gap-2 active:scale-95"
-            >
-              {step === 5 ? '리포트 생성하기' : '다음으로'} <ArrowRight size={18} />
-            </button>
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Left Toolbar (Palette) */}
+        <div className="w-64 bg-white border-r border-slate-200 shadow-xl z-30 flex flex-col h-full absolute left-0 top-0 md:relative">
+          <div className="p-5 border-b border-slate-100 bg-slate-50">
+            <h2 className="font-bold text-slate-800 mb-1">브릭 팔레트</h2>
+            <p className="text-xs text-slate-500">삶의 조각들을 캔버스로 꺼내세요.</p>
+          </div>
+          <div className="p-4 overflow-y-auto flex-1 space-y-2 custom-scrollbar">
+            {Object.entries(BRICK_DEF).map(([type, def]) => {
+              const Icon = def.icon;
+              return (
+                <button
+                  key={type}
+                  onClick={() => addBrick(type as BrickType)}
+                  className="w-full text-left p-3 rounded-xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 transition-all flex items-start gap-3 group"
+                >
+                  <div className={`p-2 rounded-lg shrink-0 ${def.color} group-hover:scale-110 transition-transform`}>
+                    <Icon size={18} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-800 text-sm mb-0.5">{def.name}</div>
+                    <div className="text-[10px] text-slate-500 leading-tight">{def.desc}</div>
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </div>
-      )}
+
+        {/* Canvas Area */}
+        <div className="flex-1 relative overflow-hidden" ref={containerRef}>
+          {bricks.length === 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 pointer-events-none">
+              <Plus size={48} className="mb-4 opacity-20" />
+              <p className="font-semibold">왼쪽 팔레트에서 브릭을 추가해 보세요</p>
+              <p className="text-sm">경험, 욕구, 제약 등을 캔버스에 자유롭게 배치하세요.</p>
+            </div>
+          )}
+
+          {/* Render Bricks */}
+          {bricks.map(brick => {
+            const def = BRICK_DEF[brick.type];
+            const Icon = def.icon;
+            const isActive = activeBrick === brick.id;
+
+            return (
+              <motion.div
+                key={brick.id}
+                drag
+                dragMomentum={false}
+                dragConstraints={containerRef}
+                onMouseDown={() => setActiveBrick(brick.id)}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                style={{ x: brick.x, y: brick.y }}
+                className={`absolute w-64 rounded-xl shadow-lg border-2 cursor-grab active:cursor-grabbing flex flex-col bg-white overflow-hidden transition-shadow ${isActive ? 'ring-4 ring-indigo-500/20 z-20 ' + def.border : 'border-slate-200 z-10 hover:shadow-xl'}`}
+              >
+                <div className={`px-3 py-2 flex items-center justify-between border-b ${def.color.replace('text-', 'bg-opacity-10 text-')}`}>
+                  <div className="flex items-center gap-2 font-bold text-sm">
+                    <Icon size={14} /> {def.name}
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); deleteBrick(brick.id); }} className="text-slate-400 hover:text-slate-800">
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="p-3">
+                  <textarea 
+                    value={brick.content}
+                    onChange={(e) => updateBrickContent(brick.id, e.target.value)}
+                    placeholder={`${def.name}에 대해 적어주세요...`}
+                    className="w-full text-sm text-slate-700 bg-transparent resize-none focus:outline-none min-h-[60px]"
+                    onMouseDown={(e) => e.stopPropagation()} // Allow text selection
+                  />
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
     </div>
+  );
+
+  // --------------------------------------------------------
+  // 3. REPORT VIEW (Structured Output)
+  // --------------------------------------------------------
+  const renderReport = () => {
+    // Basic logic to extract insights from placed bricks
+    const experiences = bricks.filter(b => b.type === 'experience' && b.content);
+    const anxieties = bricks.filter(b => b.type === 'anxiety' && b.content);
+    const constraints = bricks.filter(b => b.type === 'constraint' && b.content);
+    const desires = bricks.filter(b => b.type === 'desire' && b.content);
+
+    return (
+      <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-indigo-100 overflow-y-auto pb-32">
+        <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+          <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+            <button onClick={() => setView('workspace')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-medium text-sm transition-colors">
+              <Grid size={18} /> 캔버스로 돌아가기
+            </button>
+            <div className="flex gap-3">
+               <button className="flex items-center gap-2 px-4 py-1.5 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                 <Share2 size={16} /> 공유
+               </button>
+               <button className="flex items-center gap-2 px-4 py-1.5 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-colors shadow-sm">
+                 <Download size={16} /> PDF 저장
+               </button>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-5xl mx-auto px-6 pt-12 space-y-12">
+          
+          <div className="text-center max-w-2xl mx-auto space-y-4">
+            <div className="inline-flex items-center justify-center p-3 bg-indigo-100 text-indigo-600 rounded-2xl mb-2 shadow-inner">
+              <Compass size={32} />
+            </div>
+            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">구조화 리포트</h1>
+            <p className="text-lg text-slate-500 leading-relaxed">
+              캔버스에 흩어져 있던 {bricks.length}개의 블록들을 분석하여,<br/>
+              현재 상태의 모순점과 가장 현실적인 다음 경로를 도출했습니다.
+            </p>
+          </div>
+
+          {/* Section 1: Current Map */}
+          <section className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
+            <h2 className="text-xl font-bold flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
+              <Map className="text-indigo-500" /> 현재 상태 맵 (State Map)
+            </h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"><Briefcase size={16}/> 나의 핵심 자원</h3>
+                {experiences.length > 0 ? experiences.map(b => (
+                  <div key={b.id} className="p-3 bg-slate-800 text-white rounded-xl text-sm font-medium shadow-sm">{b.content}</div>
+                )) : <div className="p-3 bg-slate-50 text-slate-400 rounded-xl text-sm border border-slate-200 border-dashed">입력된 경험이 없습니다.</div>}
+              </div>
+              
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"><Lock size={16}/> 절대적 제약</h3>
+                {constraints.length > 0 ? constraints.map(b => (
+                  <div key={b.id} className="p-3 bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-sm font-medium shadow-sm">{b.content}</div>
+                )) : <div className="p-3 bg-slate-50 text-slate-400 rounded-xl text-sm border border-slate-200 border-dashed">제약 조건이 없습니다.</div>}
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-rose-400 uppercase tracking-wider flex items-center gap-2"><AlertTriangle size={16}/> 충돌 요소 (병목)</h3>
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl shadow-sm">
+                  <p className="text-sm text-rose-800 leading-relaxed font-medium">
+                    현재 <b>{desires[0]?.content || "새로운 변화"}</b>를 원하지만, 동시에 <b>{anxieties[0]?.content || "불확실성"}</b>에 대한 불안이 충돌하여 실행을 가로막는 병목 상태입니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 2: Path Analysis */}
+          <section className="space-y-6">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Shuffle className="text-indigo-600" /> 현실적인 다음 경로 탐색
+            </h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Path 1 */}
+              <div className="bg-white rounded-3xl p-8 border border-indigo-100 shadow-md relative overflow-hidden ring-1 ring-indigo-500/10 hover:shadow-lg transition-shadow">
+                <div className="absolute top-0 right-0 p-6 opacity-5">
+                  <Target size={100} />
+                </div>
+                <div className="relative z-10">
+                  <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-md uppercase tracking-wider mb-4 inline-block">Option A. Pivot</span>
+                  <h3 className="text-2xl font-bold text-slate-900 mb-2">핵심 자원 기반의 직무 피벗</h3>
+                  <p className="text-slate-500 mb-6 text-sm leading-relaxed">
+                    기존 경험({experiences[0]?.content || '현재 역량'})을 살리되, 새로운 도메인이나 역할로 이동하여 성장 정체를 극복하는 전략.
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <div className="text-xs font-bold text-emerald-600 mb-1">방어 가능한 제약 (PROS)</div>
+                      <div className="text-sm font-medium text-slate-700">{constraints[0]?.content || '연봉/근무조건 유지 가능성'}</div>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <div className="text-xs font-bold text-rose-600 mb-1">감수해야 할 리스크 (CONS)</div>
+                      <div className="text-sm font-medium text-slate-700">초기 3~6개월의 높은 에너지 소모와 불확실성</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Path 2 */}
+              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative overflow-hidden hover:shadow-md transition-shadow">
+                <div className="absolute top-0 right-0 p-6 opacity-5">
+                  <Minimize2 size={100} />
+                </div>
+                <div className="relative z-10">
+                  <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-md uppercase tracking-wider mb-4 inline-block">Option B. Stay & Side</span>
+                  <h3 className="text-2xl font-bold text-slate-900 mb-2">현직 유지 + 워라밸 확보</h3>
+                  <p className="text-slate-500 mb-6 text-sm leading-relaxed">
+                    현재 직장에서 에너지를 70% 수준으로 조율하고, 나머지 30%를 개인의 성장이나 다른 욕구 충족에 투자하는 방어적 전략.
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <div className="text-xs font-bold text-emerald-600 mb-1">방어 가능한 제약 (PROS)</div>
+                      <div className="text-sm font-medium text-slate-700">심리적 안정감 극대화 및 {anxieties[0]?.content || '불안 요소'} 완벽 차단</div>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <div className="text-xs font-bold text-rose-600 mb-1">감수해야 할 리스크 (CONS)</div>
+                      <div className="text-sm font-medium text-slate-700">{desires[0]?.content || '자아 실현 욕구'}의 지연 및 동기부여 저하</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 3: Next Actions */}
+          <section className="bg-slate-900 rounded-3xl p-8 md:p-10 text-white shadow-xl flex flex-col md:flex-row gap-8 items-center relative overflow-hidden">
+             <div className="md:w-1/3 z-10 space-y-4">
+               <h2 className="text-2xl font-bold">2주 안에 실행할<br/>작은 실험</h2>
+               <p className="text-slate-400 text-sm leading-relaxed">
+                 거창한 이직이나 퇴사가 아닌, 리스크 없이 경로를 테스트해 볼 수 있는 구체적인 액션 아이템입니다.
+               </p>
+             </div>
+             <div className="md:w-2/3 z-10 w-full space-y-3">
+               <div className="flex items-start gap-4 bg-slate-800/80 p-5 rounded-2xl border border-slate-700">
+                 <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 font-bold">1</div>
+                 <div>
+                   <h4 className="font-bold text-indigo-100 mb-1">관심 경로의 현직자와 가벼운 커피챗 1회</h4>
+                   <p className="text-sm text-slate-400 leading-relaxed">LinkedIn을 통해 내가 고려하는 직무(Option A)로 이직한 분에게 메시지를 보내 현실적인 이야기를 들어봅니다.</p>
+                 </div>
+               </div>
+               <div className="flex items-start gap-4 bg-slate-800/80 p-5 rounded-2xl border border-slate-700">
+                 <div className="w-8 h-8 rounded-full bg-teal-500/20 text-teal-400 flex items-center justify-center shrink-0 font-bold">2</div>
+                 <div>
+                   <h4 className="font-bold text-teal-100 mb-1">나의 '경험 블록'을 한 장의 이력서(원페이저)로 요약하기</h4>
+                   <p className="text-sm text-slate-400 leading-relaxed">디자인이나 형식을 빼고, 오늘 캔버스에 적었던 <b>핵심 자원</b> 3가지만을 중심으로 무기가 될 수 있는지 문서화해 봅니다.</p>
+                 </div>
+               </div>
+             </div>
+          </section>
+
+        </main>
+      </div>
+    );
+  };
+
+  // --------------------------------------------------------
+  // ROUTER LOGIC
+  // --------------------------------------------------------
+  return (
+    <AnimatePresence mode="wait">
+      {view === 'landing' && <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-screen">{renderLanding()}</motion.div>}
+      {view === 'workspace' && <motion.div key="workspace" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="h-screen">{renderWorkspace()}</motion.div>}
+      {view === 'report' && <motion.div key="report" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-screen">{renderReport()}</motion.div>}
+    </AnimatePresence>
   );
 }
