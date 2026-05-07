@@ -98,6 +98,7 @@ export default function App() {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [activeBrick, setActiveBrick] = useState<string | null>(null);
   const [insightMessage, setInsightMessage] = useState<string | null>(null);
+  const [manualCore, setManualCore] = useState<CoreBrickType | null>(null);
   
   // Auth & Session
   const [session, setSession] = useState<any>(null);
@@ -121,7 +122,7 @@ export default function App() {
     const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
     return sorted[0][0] as CoreBrickType;
   };
-  const currentCore = extractCoreBrick();
+  const currentCore = manualCore || extractCoreBrick();
   const CoreDef = CORE_BRICKS[currentCore];
 
   useEffect(() => {
@@ -467,6 +468,21 @@ export default function App() {
                 <p className="text-xl font-bold opacity-90 leading-relaxed bg-black/20 p-6 rounded-2xl">
                   {CoreDef.desc}
                 </p>
+                <div className="mt-8 flex flex-wrap justify-center gap-3">
+                  {(Object.keys(CORE_BRICKS) as CoreBrickType[]).map(key => {
+                    const kDef = CORE_BRICKS[key];
+                    const Icon = kDef.icon;
+                    return (
+                      <button 
+                        key={key} 
+                        onClick={() => setManualCore(key)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black transition-all border-2 ${currentCore === key ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-white/70 border-white/30 hover:bg-white/10 hover:border-white/50'}`}
+                      >
+                        <Icon size={16} /> {kDef.title}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </Brick3D>
           </div>
@@ -566,6 +582,25 @@ export default function App() {
             
             {bricks.length === 0 && (
               <p className="text-slate-500 font-bold text-center py-4">캔버스에 배치된 블록이 없습니다.</p>
+            )}
+
+            {/* AI Interpretation */}
+            {bricks.length > 0 && (
+              <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-2xl mt-8">
+                <h3 className="text-sm font-black text-indigo-600 mb-3 flex items-center gap-2"><Sparkles size={16}/> 퍼실리테이터의 해석</h3>
+                <p className="text-sm text-indigo-900 font-bold leading-relaxed">
+                  {connections.filter(c => c.type === 'conflict').length > 0 ? (
+                    `현재 캔버스는 강한 충돌 영역에서 발견된 마찰이 에너지를 소모시키고 있습니다. 전체적으로 '${CoreDef.title}'을(를) 추구하지만 현실의 제약과 부딪히는 과도기적 구조입니다. `
+                  ) : (
+                    `현재 캔버스에는 뚜렷한 마찰 요소가 보이지 않습니다. '${CoreDef.title}'을(를) 중심으로 비교적 안정된 구조를 그리고 있습니다. `
+                  )}
+                  {bricks.filter(b => b.zone === 'discard').length === 0 ? (
+                    `다만, '버릴 것(Discard)'에 대한 기준이 명확하지 않아 에너지가 분산될 우려가 있습니다.`
+                  ) : (
+                    `특히 버릴 것을 명확히 분리해낸 점이 다음 경로를 설계하는 데 큰 도움이 될 것입니다.`
+                  )}
+                </p>
+              </div>
             )}
           </div>
         </section>
