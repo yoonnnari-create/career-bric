@@ -4,11 +4,10 @@ import {
   Box, Target, AlertTriangle, Lock, Users, Battery, DollarSign, 
   Briefcase, Heart, Activity, Search, Plus, X, ArrowRight, Grid, 
   LayoutDashboard, Shuffle, Map, Compass, ShieldAlert,
-  Minimize2, Share2, Download, Hexagon, Zap, Layers
+  Minimize2, Share2, Download, Hexagon, Zap, Layers, Trash2, Crosshair, Sparkles, Link as LinkIcon
 } from 'lucide-react';
-import { supabase } from './lib/supabase';
 
-// --- Types & Data Definitions ---
+// --- Types & Data ---
 type BrickType = 'experience' | 'desire' | 'anxiety' | 'constraint' | 'relationship' | 'energy' | 'money' | 'work' | 'meaning' | 'recovery';
 
 interface Brick {
@@ -18,36 +17,44 @@ interface Brick {
   x: number;
   y: number;
   content: string;
+  zone: 'core' | 'keep' | 'discard' | 'none';
+  importance: number; // 1 to 3
+}
+
+interface Connection {
+  id: string;
+  from: string;
+  to: string;
+  type: 'conflict' | 'influence';
 }
 
 const BRICK_DEF: Record<BrickType, { icon: any, bg: string, border: string, text: string, name: string, desc: string }> = {
-  experience: { icon: Briefcase, bg: 'bg-slate-700', border: 'border-slate-900', text: 'text-white', name: '경험', desc: '과거에 쌓은 실질적 역량' },
-  desire: { icon: Heart, bg: 'bg-rose-500', border: 'border-rose-700', text: 'text-white', name: '욕구', desc: '가장 끌리는 변화 방향' },
-  anxiety: { icon: AlertTriangle, bg: 'bg-amber-400', border: 'border-amber-600', text: 'text-amber-950', name: '불안', desc: '나를 멈칫하게 만드는 요소' },
-  constraint: { icon: Lock, bg: 'bg-stone-500', border: 'border-stone-700', text: 'text-white', name: '제약', desc: '포기할 수 없는 현실 조건' },
-  relationship: { icon: Users, bg: 'bg-orange-500', border: 'border-orange-700', text: 'text-white', name: '관계', desc: '나에게 영향을 주는 사람들' },
-  energy: { icon: Battery, bg: 'bg-emerald-500', border: 'border-emerald-700', text: 'text-white', name: '에너지', desc: '나의 체력과 몰입' },
-  money: { icon: DollarSign, bg: 'bg-green-500', border: 'border-green-700', text: 'text-white', name: '수익', desc: '필요한 경제적 보상' },
-  work: { icon: Target, bg: 'bg-blue-500', border: 'border-blue-700', text: 'text-white', name: '일', desc: '업무의 방식과 태도' },
-  meaning: { icon: Search, bg: 'bg-purple-500', border: 'border-purple-700', text: 'text-white', name: '의미', desc: '내 삶의 가치와 목적' },
-  recovery: { icon: Activity, bg: 'bg-teal-500', border: 'border-teal-700', text: 'text-white', name: '회복', desc: '재충전하는 방식' },
+  experience: { icon: Briefcase, bg: 'bg-slate-700', border: 'border-slate-900', text: 'text-white', name: '경험', desc: '과거 역량' },
+  desire: { icon: Heart, bg: 'bg-rose-500', border: 'border-rose-700', text: 'text-white', name: '욕구', desc: '끌리는 방향' },
+  anxiety: { icon: AlertTriangle, bg: 'bg-amber-400', border: 'border-amber-600', text: 'text-amber-950', name: '불안', desc: '멈칫하는 요소' },
+  constraint: { icon: Lock, bg: 'bg-stone-500', border: 'border-stone-700', text: 'text-white', name: '제약', desc: '현실 조건' },
+  relationship: { icon: Users, bg: 'bg-orange-500', border: 'border-orange-700', text: 'text-white', name: '관계', desc: '영향을 주는 사람' },
+  energy: { icon: Battery, bg: 'bg-emerald-500', border: 'border-emerald-700', text: 'text-white', name: '에너지', desc: '체력과 몰입' },
+  money: { icon: DollarSign, bg: 'bg-green-500', border: 'border-green-700', text: 'text-white', name: '수익', desc: '경제적 보상' },
+  work: { icon: Target, bg: 'bg-blue-500', border: 'border-blue-700', text: 'text-white', name: '일', desc: '업무 태도' },
+  meaning: { icon: Search, bg: 'bg-purple-500', border: 'border-purple-700', text: 'text-white', name: '의미', desc: '삶의 가치' },
+  recovery: { icon: Activity, bg: 'bg-teal-500', border: 'border-teal-700', text: 'text-white', name: '회복', desc: '재충전 방식' },
 };
 
 type CoreBrickType = 'stability' | 'meaning' | 'mastery' | 'autonomy';
-
-const CORE_BRICKS: Record<CoreBrickType, { title: string, icon: any, desc: string, color: string, border: string, glow: string }> = {
-  stability: { title: '생존과 안정성', icon: ShieldAlert, desc: '현재 당신을 움직이는 가장 강력한 중심축은 생존과 안정성입니다. 불확실성을 최소화하고, 재무적/물리적 제약을 방어하려는 패턴이 뚜렷하게 나타납니다.', color: 'bg-slate-800', border: 'border-slate-950', glow: 'shadow-[0_0_60px_rgba(30,41,59,0.5)]' },
-  meaning: { title: '의미와 연결', icon: Heart, desc: '지금 당신의 선택을 지배하는 핵심 축은 의미와 관계입니다. 단순한 보상이나 생존을 넘어, 내가 하는 일의 내적 가치와 타인과의 연결성을 깊게 탐색하고 있습니다.', color: 'bg-purple-600', border: 'border-purple-900', glow: 'shadow-[0_0_60px_rgba(147,51,234,0.5)]' },
-  mastery: { title: '성취와 전문성', icon: Zap, desc: '현재 가장 강한 중심축은 성취와 전문성입니다. 일의 결과물, 스스로의 성장, 그리고 보유한 자원을 어떻게 폭발시킬 것인지가 모든 고민의 중심에 놓여 있습니다.', color: 'bg-blue-600', border: 'border-blue-900', glow: 'shadow-[0_0_60px_rgba(37,99,235,0.5)]' },
-  autonomy: { title: '자율성과 회복', icon: Activity, desc: '지금 당신을 움직이는 거대한 축은 자율성과 에너지 회복입니다. 외부 시스템에 소모되기보다, 주도적으로 일과 삶의 주도권을 되찾으려는 강렬한 욕구가 보입니다.', color: 'bg-teal-500', border: 'border-teal-800', glow: 'shadow-[0_0_60px_rgba(20,184,166,0.5)]' }
+const CORE_BRICKS: Record<CoreBrickType, { title: string, icon: any, color: string, border: string, glow: string }> = {
+  stability: { title: '생존과 안정성', icon: ShieldAlert, color: 'bg-slate-800', border: 'border-slate-950', glow: 'shadow-[0_0_60px_rgba(30,41,59,0.3)]' },
+  meaning: { title: '의미와 연결', icon: Heart, color: 'bg-purple-600', border: 'border-purple-900', glow: 'shadow-[0_0_60px_rgba(147,51,234,0.3)]' },
+  mastery: { title: '성취와 전문성', icon: Zap, color: 'bg-blue-600', border: 'border-blue-900', glow: 'shadow-[0_0_60px_rgba(37,99,235,0.3)]' },
+  autonomy: { title: '자율성과 회복', icon: Activity, color: 'bg-teal-500', border: 'border-teal-800', glow: 'shadow-[0_0_60px_rgba(20,184,166,0.3)]' }
 };
 
-// --- Reusable Block Component ---
+// --- Reusable 3D Block Studs ---
 const BlockStuds = ({ bg, border, large = false }: { bg: string, border: string, large?: boolean }) => {
-  const sizeClass = large ? 'w-12 h-[14px]' : 'w-8 h-[10px]';
-  const topSize = large ? 'w-12 h-[10px] top-[4px]' : 'w-8 h-[6px] top-0';
-  const bodySize = large ? 'w-12 h-[10px] top-[4px]' : 'w-8 h-[8px] top-[2px]';
-  const gap = large ? 'gap-4 left-6 -top-[14px]' : 'gap-3 left-4 -top-[10px]';
+  const sizeClass = large ? 'w-10 h-[12px]' : 'w-6 h-[8px]';
+  const topSize = large ? 'w-10 h-[8px] top-[4px]' : 'w-6 h-[4px] top-0';
+  const bodySize = large ? 'w-10 h-[8px] top-[4px]' : 'w-6 h-[6px] top-[2px]';
+  const gap = large ? 'gap-3 left-6 -top-[12px]' : 'gap-2 left-4 -top-[8px]';
   
   return (
     <div className={`absolute flex z-0 pointer-events-none ${gap}`}>
@@ -61,555 +68,348 @@ const BlockStuds = ({ bg, border, large = false }: { bg: string, border: string,
   );
 };
 
-const BlockContainer = ({ type, children, className = '', isDragging = false }: { type: BrickType, children: React.ReactNode, className?: string, isDragging?: boolean }) => {
-  const def = BRICK_DEF[type];
-  return (
-    <div className={`relative rounded-xl border-2 border-b-[6px] border-r-[4px] ${def.bg} ${def.border} ${def.text} transition-transform ${isDragging ? 'scale-105 shadow-2xl z-50' : 'hover:-translate-y-1 hover:shadow-lg'} ${className}`}>
-      <BlockStuds bg={def.bg} border={def.border} />
-      <div className="relative z-10 w-full h-full flex flex-col">
-        {children}
-      </div>
-    </div>
-  );
-};
-
-
 export default function App() {
-  const [view, setView] = useState<'landing' | 'workspace' | 'report'>('landing');
+  const [view, setView] = useState<'landing' | 'workspace'>('landing');
   const [bricks, setBricks] = useState<Brick[]>([]);
+  const [connections, setConnections] = useState<Connection[]>([]);
   const [activeBrick, setActiveBrick] = useState<string | null>(null);
-  const [userCoreBrick, setUserCoreBrick] = useState<CoreBrickType | null>(null);
-  const [showCoreModal, setShowCoreModal] = useState(false);
+  const [insightMessage, setInsightMessage] = useState<string | null>(null);
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Auth State
-  const [session, setSession] = useState<any>(null);
+  // Auto-extract Core Brick based on current bricks
+  const extractCoreBrick = (): CoreBrickType => {
+    const counts = { stability: 0, meaning: 0, mastery: 0, autonomy: 0 };
+    bricks.forEach(b => {
+      if (['money', 'constraint', 'anxiety'].includes(b.type)) counts.stability++;
+      else if (['desire', 'relationship', 'meaning'].includes(b.type)) counts.meaning++;
+      else if (['experience', 'work', 'energy'].includes(b.type)) counts.mastery++;
+      else if (['recovery'].includes(b.type)) counts.autonomy++;
+    });
+    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+    return (sorted[0][1] > 0 ? sorted[0][0] : 'stability') as CoreBrickType;
+  };
+  const currentCore = extractCoreBrick();
+  const CoreDef = CORE_BRICKS[currentCore];
 
+  // Mid-process Insights Logic
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-    supabase.auth.onAuthStateChange((_event, session) => setSession(session));
-  }, []);
+    if (bricks.length === 3) setInsightMessage("블록이 쌓이기 시작했습니다. 서로 연결되는 패턴을 찾아보세요.");
+    if (bricks.filter(b => b.type === 'anxiety').length >= 2) setInsightMessage("불안 블록이 반복적으로 등장하고 있습니다. 이 불안의 진짜 원인은 무엇일까요?");
+    if (bricks.filter(b => b.zone === 'discard').length >= 1) setInsightMessage("훌륭합니다! 버릴 것을 명확히 하는 것이 구조화의 첫걸음입니다.");
+    
+    // Auto-connect conflict example: desire <-> anxiety
+    const desires = bricks.filter(b => b.type === 'desire');
+    const anxieties = bricks.filter(b => b.type === 'anxiety');
+    if (desires.length > 0 && anxieties.length > 0) {
+      const exists = connections.some(c => c.from === desires[0].id && c.to === anxieties[0].id);
+      if (!exists) {
+        setConnections(prev => [...prev, { id: Date.now().toString(), from: desires[0].id, to: anxieties[0].id, type: 'conflict' }]);
+        setInsightMessage(`'${desires[0].label}'과 '${anxieties[0].label}' 사이에 강한 충돌이 발생했습니다.`);
+      }
+    }
+
+    const timer = setTimeout(() => setInsightMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, [bricks]);
 
   const addBrick = (type: BrickType) => {
     const newBrick: Brick = {
       id: Date.now().toString(),
       type,
       label: BRICK_DEF[type].name,
-      x: Math.random() * 200 + 100, // Random initial X
-      y: Math.random() * 200 + 100, // Random initial Y
-      content: ''
+      x: window.innerWidth / 2 - 100 + (Math.random() * 40 - 20),
+      y: window.innerHeight / 2 - 100 + (Math.random() * 40 - 20),
+      content: '',
+      zone: 'none',
+      importance: 1
     };
     setBricks(prev => [...prev, newBrick]);
     setActiveBrick(newBrick.id);
   };
 
-  const updateBrickContent = (id: string, content: string) => {
-    setBricks(prev => prev.map(b => b.id === id ? { ...b, content } : b));
+  const updateBrick = (id: string, updates: Partial<Brick>) => {
+    setBricks(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
   };
 
   const deleteBrick = (id: string) => {
     setBricks(prev => prev.filter(b => b.id !== id));
+    setConnections(prev => prev.filter(c => c.from !== id && c.to !== id));
     if (activeBrick === id) setActiveBrick(null);
   };
 
-  const handleGenerateReportClick = () => {
-    setShowCoreModal(true);
-  };
+  const handleDragEnd = (id: string, info: any) => {
+    // Determine zone based on x, y position relative to the screen
+    // Simple heuristic for zones: top-right is Keep, bottom-right is Discard
+    const x = info.point.x;
+    const y = info.point.y;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    
+    let newZone: Brick['zone'] = 'none';
+    if (x > width - 400 && y < 300) newZone = 'keep';
+    else if (x > width - 400 && y > height - 300) newZone = 'discard';
+    else if (x > width / 2 - 200 && x < width / 2 + 200 && y > height / 2 - 200 && y < height / 2 + 200) newZone = 'core';
 
-  const handleCoreBrickSelect = async (type: CoreBrickType) => {
-    setUserCoreBrick(type);
-    setShowCoreModal(false);
-    setView('report');
-
-    // Save to Supabase for Admin to see
-    try {
-      await supabase.from('workbook_submissions').insert([
-        {
-          theme: type,
-          messages: bricks,
-          user_email: session?.user?.email || 'anonymous',
-          profile: { type: 'lifebric_canvas', name: session?.user?.user_metadata?.full_name || '익명' }
-        }
-      ]);
-    } catch (e) {
-      console.error('Failed to save submission:', e);
-    }
+    updateBrick(id, { x: info.point.x - 300 /* offset for sidebar */, y: info.point.y, zone: newZone });
   };
 
   // --------------------------------------------------------
-  // 1. LANDING VIEW
+  // LANDING
   // --------------------------------------------------------
-  const renderLanding = () => (
-    <div className="min-h-screen bg-slate-50 relative overflow-hidden flex flex-col items-center justify-center">
-      {/* Background Grid Pattern */}
-      <div className="absolute inset-0 z-0 opacity-30 pointer-events-none" 
-           style={{ backgroundImage: 'radial-gradient(#94a3b8 1.5px, transparent 1.5px)', backgroundSize: '48px 48px' }} />
-      
-      {/* Core Brick Hero Concept */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden flex items-center justify-center">
-        
-        {/* The Massive Core Brick in Center */}
-        <motion.div 
-          animate={{ y: [0, -10, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute z-10"
-        >
-          <div className="relative w-80 h-40 bg-indigo-600 rounded-3xl border-4 border-b-[16px] border-r-[12px] border-indigo-900 shadow-[0_0_80px_rgba(79,70,229,0.4)] flex items-center justify-center">
-            <BlockStuds bg="bg-indigo-600" border="border-indigo-900" large />
-            <div className="relative z-10 flex flex-col items-center text-white">
-              <Hexagon size={48} className="mb-2 opacity-80" />
-              <span className="font-black text-2xl tracking-widest uppercase">Core Brick</span>
-            </div>
+  if (view === 'landing') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#94a3b8 1.5px, transparent 1.5px)', backgroundSize: '40px 40px' }} />
+        <div className="relative z-10 max-w-3xl">
+          <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-900 text-white rounded-full text-sm font-black tracking-widest uppercase border-b-4 border-slate-900 mb-8">
+            <Layers size={18} /> Lifebric Canvas
           </div>
-        </motion.div>
-
-        {/* Orbiting / Connecting Bricks */}
-        <motion.div animate={{ x: [0, 20, 0], y: [0, -20, 0], rotate: [0, 5, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} className="absolute top-[20%] left-[20%] w-40 z-20">
-          <BlockContainer type="experience"><div className="p-3 font-black flex items-center gap-2 text-sm"><Briefcase size={16}/> 경험</div></BlockContainer>
-        </motion.div>
-        
-        <motion.div animate={{ x: [0, -30, 0], y: [0, 10, 0], rotate: [0, -8, 0] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }} className="absolute top-[25%] right-[20%] w-40 z-20">
-          <BlockContainer type="desire"><div className="p-3 font-black flex items-center gap-2 text-sm"><Heart size={16}/> 욕구</div></BlockContainer>
-        </motion.div>
-
-        <motion.div animate={{ x: [0, 10, 0], y: [0, 25, 0], rotate: [0, -5, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }} className="absolute bottom-[20%] left-[25%] w-40 z-20">
-          <BlockContainer type="anxiety"><div className="p-3 font-black flex items-center gap-2 text-sm"><AlertTriangle size={16}/> 불안</div></BlockContainer>
-        </motion.div>
-        
-        <motion.div animate={{ x: [0, -15, 0], y: [0, -15, 0], rotate: [0, 10, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }} className="absolute bottom-[25%] right-[25%] w-40 z-20">
-          <BlockContainer type="constraint"><div className="p-3 font-black flex items-center gap-2 text-sm"><Lock size={16}/> 제약</div></BlockContainer>
-        </motion.div>
-
-        {/* Dynamic Connecting Lines to Core */}
-        <svg className="absolute inset-0 w-full h-full stroke-indigo-300 stroke-[3] opacity-40 z-0" style={{ fill: 'none' }}>
-          <motion.path d="M 25vw 25vh Q 50vw 50vh 50vw 50vh" animate={{ strokeDashoffset: [100, 0] }} transition={{ duration: 2, repeat: Infinity }} strokeDasharray="10,10" />
-          <motion.path d="M 75vw 30vh Q 50vw 50vh 50vw 50vh" animate={{ strokeDashoffset: [100, 0] }} transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }} strokeDasharray="10,10" />
-          <motion.path d="M 30vw 75vh Q 50vw 50vh 50vw 50vh" animate={{ strokeDashoffset: [100, 0] }} transition={{ duration: 3, repeat: Infinity, delay: 1 }} strokeDasharray="10,10" />
-          <motion.path d="M 70vw 70vh Q 50vw 50vh 50vw 50vh" animate={{ strokeDashoffset: [100, 0] }} transition={{ duration: 2.2, repeat: Infinity, delay: 0.2 }} strokeDasharray="10,10" />
-        </svg>
-      </div>
-
-      {/* Hero Content */}
-      <div className="relative z-30 max-w-4xl mx-auto px-6 text-center mt-32 bg-white/70 p-12 rounded-[3rem] backdrop-blur-xl border-4 border-white shadow-2xl">
-        <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-900 text-white rounded-full text-sm font-black tracking-widest uppercase border-b-4 border-slate-900 mb-8 shadow-md">
-          <Layers size={18} />
-          Lifebric: Core Architecture
-        </div>
-        
-        <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight leading-[1.1] mb-6">
-          내 삶을 움직이는<br/>
-          <span className="text-indigo-600">핵심 블록(Core Brick)</span>을 찾아라.
-        </h1>
-        
-        <p className="text-xl md:text-2xl text-slate-600 font-bold mb-12 max-w-2xl mx-auto leading-relaxed">
-          단순한 정리가 아닙니다. 조각난 경험과 불안을 조립하여,<br/>
-          가장 중심에서 나를 이끄는 <b className="text-slate-900">삶의 중심축</b>을 직접 선택하고 구조화합니다.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight leading-[1.1] mb-6">
+            삶을, <span className="text-indigo-600">구조화</span>하다.
+          </h1>
+          <p className="text-xl text-slate-600 font-bold mb-12 leading-relaxed">
+            AI의 뻔한 추천을 거부합니다.<br/>
+            경험, 욕구, 불안을 워크스페이스에 꺼내어 놓고 당신만의 진짜 지도를 완성하세요.
+          </p>
           <button 
             onClick={() => setView('workspace')}
-            className="w-full sm:w-auto px-10 py-5 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-500 border-b-[6px] border-indigo-900 active:border-b-0 active:translate-y-[6px] transition-all shadow-xl flex items-center justify-center gap-3 text-xl"
+            className="px-10 py-5 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-500 border-b-[6px] border-indigo-900 active:border-b-0 active:translate-y-[6px] transition-all shadow-xl flex items-center justify-center gap-3 text-xl mx-auto"
           >
-            내 블록 조립하기 <ArrowRight size={24} />
+            워크스페이스 열기 <ArrowRight size={24} />
           </button>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   // --------------------------------------------------------
-  // 2. WORKSPACE VIEW (Canvas)
+  // WORKSPACE (Canvas + Panels)
   // --------------------------------------------------------
-  const renderWorkspace = () => (
-    <div className="h-screen bg-slate-50 flex flex-col overflow-hidden relative" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1.5px, transparent 1.5px)', backgroundSize: '32px 32px' }}>
+  return (
+    <div className="h-screen w-screen flex bg-slate-50 overflow-hidden font-sans selection:bg-indigo-100">
       
-      {/* Workspace Header */}
-      <header className="h-16 bg-white border-b-4 border-slate-200 flex items-center justify-between px-6 z-40 shrink-0 shadow-sm">
-        <div className="flex items-center gap-3">
-          <button onClick={() => setView('landing')} className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition-colors border-b-2 border-slate-300 active:border-b-0 active:translate-y-[2px]">
-            <LayoutDashboard size={20} />
-          </button>
-          <h1 className="font-black text-slate-800 tracking-tight text-xl flex items-center gap-2"><Box className="text-indigo-600"/> Lifebric Workspace</h1>
+      {/* 1. LEFT PANEL: State & Palette */}
+      <div className="w-80 bg-white border-r-4 border-slate-200 flex flex-col z-30 shadow-2xl relative">
+        <div className="p-6 border-b border-slate-100 bg-slate-50">
+          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2"><Box className="text-indigo-600"/> Lifebric</h1>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-sm font-bold text-slate-600 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200 shadow-inner">
-            조립된 블록 <span className="text-indigo-600 ml-1 font-black">{bricks.length}</span>개
-          </div>
-          <button 
-            onClick={handleGenerateReportClick}
-            disabled={bricks.length < 3}
-            className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-black rounded-xl hover:bg-indigo-500 border-b-4 border-indigo-900 active:border-b-0 active:translate-y-[4px] disabled:opacity-50 disabled:active:border-b-4 disabled:active:translate-y-0 transition-all flex items-center gap-2 shadow-md"
-          >
-            <Map size={18} /> 구조화 리포트 생성
-          </button>
-        </div>
-      </header>
 
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Left Toolbar (Palette) */}
-        <div className="w-72 bg-white border-r-4 border-slate-200 shadow-2xl z-30 flex flex-col h-full absolute left-0 top-0 md:relative">
-          <div className="p-5 border-b border-slate-100 bg-slate-50">
-            <h2 className="font-black text-slate-800 mb-1">브릭 팩토리</h2>
-            <p className="text-xs font-bold text-slate-500">클릭하여 캔버스로 블록을 꺼내세요.</p>
+        {/* Current State Dash */}
+        <div className="p-6 border-b-4 border-slate-100">
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Current State</h2>
+          <div className="grid grid-cols-2 gap-3">
+             <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-3">
+               <div className="text-[10px] font-black text-emerald-600 mb-1 flex items-center gap-1"><Battery size={12}/> 에너지</div>
+               <div className="text-lg font-black text-emerald-900">{bricks.length > 0 ? '소진됨' : '보통'}</div>
+             </div>
+             <div className="bg-rose-50 border-2 border-rose-200 rounded-xl p-3">
+               <div className="text-[10px] font-black text-rose-600 mb-1 flex items-center gap-1"><AlertTriangle size={12}/> 불안 수준</div>
+               <div className="text-lg font-black text-rose-900">{bricks.filter(b=>b.type==='anxiety').length > 1 ? '높음' : '안정적'}</div>
+             </div>
+             <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-3 col-span-2">
+               <div className="text-[10px] font-black text-indigo-600 mb-1 flex items-center gap-1"><Compass size={12}/> 방향 명확도</div>
+               <div className="w-full bg-indigo-200 rounded-full h-2 mt-2">
+                 <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${Math.min(100, bricks.length * 15)}%` }}></div>
+               </div>
+             </div>
           </div>
-          <div className="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
+        </div>
+
+        {/* Brick Palette */}
+        <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Brick Factory</h2>
+          <div className="space-y-3">
             {Object.entries(BRICK_DEF).map(([type, def]) => {
               const Icon = def.icon;
               return (
                 <button
                   key={type}
                   onClick={() => addBrick(type as BrickType)}
-                  className="w-full text-left focus:outline-none block"
+                  className={`w-full relative text-left p-3 rounded-xl border-2 border-b-[4px] border-r-[3px] ${def.bg} ${def.border} ${def.text} hover:-translate-y-1 active:translate-y-[2px] active:border-b-[2px] transition-all`}
                 >
-                  {/* Miniature 3D Block in Sidebar */}
-                  <div className={`relative rounded-xl border-2 border-b-[4px] border-r-[3px] ${def.bg} ${def.border} ${def.text} p-3 hover:-translate-y-1 hover:shadow-lg transition-transform active:translate-y-[2px] active:border-b-[2px]`}>
-                    <div className="absolute -top-[6px] left-3 flex gap-1.5 z-0 pointer-events-none">
-                      {[1,2].map(i => (
-                        <div key={i} className="relative w-5 h-[6px]">
-                          <div className={`absolute top-[1px] w-5 h-[5px] rounded-b-sm border-b border-r ${def.bg} ${def.border}`}></div>
-                          <div className={`absolute top-0 w-5 h-[4px] rounded-[50%] border-t border-l border-white/30 ${def.bg}`}></div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex items-start gap-3 relative z-10">
-                      <div className="shrink-0 mt-0.5"><Icon size={20} /></div>
-                      <div>
-                        <div className="font-black text-sm mb-0.5">{def.name}</div>
-                        <div className="text-[10px] font-medium opacity-80 leading-tight">{def.desc}</div>
-                      </div>
+                  <BlockStuds bg={def.bg.replace('bg-', '')} border={def.border.replace('border-', '')} />
+                  <div className="flex items-center gap-3 relative z-10">
+                    <Icon size={18} />
+                    <div>
+                      <div className="font-black text-sm">{def.name}</div>
+                      <div className="text-[10px] font-bold opacity-80">{def.desc}</div>
                     </div>
                   </div>
                 </button>
-              )
+              );
             })}
           </div>
         </div>
-
-        {/* Canvas Area */}
-        <div className="flex-1 relative overflow-hidden" ref={containerRef}>
-          {bricks.length === 0 && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 pointer-events-none">
-              <div className="p-6 bg-slate-200 rounded-3xl mb-4 border-b-[6px] border-slate-300">
-                <Plus size={48} className="opacity-50" />
-              </div>
-              <p className="font-black text-xl mb-2 text-slate-500">비어있는 세계입니다</p>
-              <p className="font-bold">왼쪽 팩토리에서 블록을 꺼내 조립을 시작하세요.</p>
-            </div>
-          )}
-
-          {/* Render Bricks */}
-          {bricks.map(brick => {
-            const def = BRICK_DEF[brick.type];
-            const Icon = def.icon;
-            const isActive = activeBrick === brick.id;
-
-            return (
-              <motion.div
-                key={brick.id}
-                drag
-                dragMomentum={false}
-                dragConstraints={containerRef}
-                onMouseDown={() => setActiveBrick(brick.id)}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                style={{ x: brick.x, y: brick.y }}
-                className="absolute cursor-grab active:cursor-grabbing"
-              >
-                <BlockContainer type={brick.type} className="w-72 min-h-[140px]" isDragging={isActive}>
-                  <div className="px-4 py-3 flex items-center justify-between border-b border-black/10">
-                    <div className="flex items-center gap-2 font-black text-sm">
-                      <Icon size={16} /> {def.name}
-                    </div>
-                    <button onClick={(e) => { e.stopPropagation(); deleteBrick(brick.id); }} className="hover:bg-black/20 p-1 rounded-md transition-colors">
-                      <X size={16} />
-                    </button>
-                  </div>
-                  <div className="p-4 flex-1 flex flex-col">
-                    <textarea 
-                      value={brick.content}
-                      onChange={(e) => updateBrickContent(brick.id, e.target.value)}
-                      placeholder={`이 ${def.name} 블록의 구체적인 내용을 적어주세요...`}
-                      className={`w-full flex-1 font-bold text-sm bg-transparent resize-none focus:outline-none placeholder:text-white/50 ${def.text}`}
-                      onMouseDown={(e) => e.stopPropagation()} // Allow text selection
-                    />
-                  </div>
-                </BlockContainer>
-              </motion.div>
-            )
-          })}
-        </div>
       </div>
 
-      {/* Core Brick Selection Modal */}
-      <AnimatePresence>
-        {showCoreModal && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-6"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="bg-slate-50 w-full max-w-4xl rounded-3xl p-10 border-[4px] border-b-[12px] border-r-[8px] border-slate-300 shadow-2xl relative"
-            >
-              <button onClick={() => setShowCoreModal(false)} className="absolute top-6 right-6 p-2 bg-slate-200 text-slate-500 rounded-xl hover:bg-slate-300 hover:text-slate-900 transition-colors border-b-4 border-slate-400 active:border-b-0 active:translate-y-1">
-                <X size={24} />
-              </button>
-              
-              <div className="text-center mb-10">
-                <div className="inline-flex items-center justify-center p-4 bg-indigo-600 text-white rounded-2xl mb-4 border-b-4 border-indigo-900 shadow-md">
-                  <Hexagon size={32} />
-                </div>
-                <h2 className="text-3xl font-black text-slate-900 mb-2">당신의 삶을 지배하는 왕블럭은 무엇인가요?</h2>
-                <p className="text-slate-600 font-bold">리포트를 생성하기 전, 현재 캔버스에서 가장 거대한 영향력을 미치고 있는 중심축 하나를 직접 선택해 주세요.</p>
-              </div>
+      {/* 2. CENTER CANVAS */}
+      <div className="flex-1 relative overflow-hidden bg-[radial-gradient(#cbd5e1_1.5px,transparent_1.5px)] [background-size:32px_32px]" ref={canvasRef}>
+        
+        {/* Drop Zones (Visual guides) */}
+        <div className="absolute top-10 right-10 w-72 h-48 border-4 border-dashed border-emerald-300 bg-emerald-50/50 rounded-3xl flex items-center justify-center pointer-events-none z-0">
+           <span className="font-black text-emerald-400 text-2xl tracking-widest uppercase">Keep (유지)</span>
+        </div>
+        <div className="absolute bottom-10 right-10 w-72 h-48 border-4 border-dashed border-rose-300 bg-rose-50/50 rounded-3xl flex items-center justify-center pointer-events-none z-0">
+           <span className="font-black text-rose-400 text-2xl tracking-widest uppercase">Discard (버리기)</span>
+        </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {(Object.entries(CORE_BRICKS) as [CoreBrickType, typeof CORE_BRICKS[CoreBrickType]][]).map(([key, brick]) => {
-                  const Icon = brick.icon;
-                  return (
-                    <button 
-                      key={key}
-                      onClick={() => handleCoreBrickSelect(key)}
-                      className={`relative text-left p-6 rounded-2xl border-[3px] border-b-[8px] border-r-[6px] ${brick.color} ${brick.border} ${brick.glow} text-white hover:-translate-y-2 active:translate-y-2 active:border-b-[3px] transition-all group overflow-hidden`}
-                    >
-                      <BlockStuds bg={brick.color.replace('bg-', '')} border={brick.border.replace('border-', '')} large />
-                      <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
-                        <Icon size={120} />
-                      </div>
-                      <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm border border-white/30">
-                            <Icon size={24} />
-                          </div>
-                          <h3 className="text-2xl font-black">{brick.title}</h3>
-                        </div>
-                        <p className="text-sm font-bold opacity-90 leading-relaxed">{brick.desc}</p>
-                      </div>
-                    </button>
-                  );
-                })}
+        {/* Core Area Indicator */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 border-[8px] border-slate-200/50 rounded-full flex items-center justify-center pointer-events-none z-0">
+           <span className="font-black text-slate-300 text-4xl tracking-widest uppercase opacity-50">Core Zone</span>
+        </div>
+
+        {/* SVG Connection Lines */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+            </marker>
+          </defs>
+          {connections.map(conn => {
+            const fromBrick = bricks.find(b => b.id === conn.from);
+            const toBrick = bricks.find(b => b.id === conn.to);
+            if (!fromBrick || !toBrick) return null;
+            // Rough center coordinates
+            const x1 = fromBrick.x + 100; const y1 = fromBrick.y + 70;
+            const x2 = toBrick.x + 100; const y2 = toBrick.y + 70;
+            
+            if (conn.type === 'conflict') {
+              return <path key={conn.id} d={`M ${x1} ${y1} Q ${(x1+x2)/2} ${(y1+y2)/2 - 50} ${x2} ${y2}`} stroke="#f43f5e" strokeWidth="4" strokeDasharray="10,10" fill="none" className="animate-pulse" />;
+            }
+            return <line key={conn.id} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#94a3b8" strokeWidth="3" markerEnd="url(#arrow)" />;
+          })}
+        </svg>
+
+        {/* Bricks rendering */}
+        {bricks.map(brick => {
+          const def = BRICK_DEF[brick.type];
+          const Icon = def.icon;
+          const isActive = activeBrick === brick.id;
+          
+          // Dynamic sizing & animation based on traits
+          const sizeClass = brick.importance === 3 ? "w-80 min-h-[160px]" : "w-64 min-h-[120px]";
+          const isConflict = connections.some(c => c.type === 'conflict' && (c.from === brick.id || c.to === brick.id));
+          const animateProps = isConflict ? { rotate: [-1, 1, -1] } : brick.type === 'recovery' ? { scale: [1, 1.02, 1] } : {};
+          const isCore = brick.zone === 'core';
+
+          return (
+            <motion.div
+              key={brick.id}
+              drag
+              dragMomentum={false}
+              onDragEnd={(_, info) => handleDragEnd(brick.id, info)}
+              onMouseDown={() => setActiveBrick(brick.id)}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1, ...animateProps }}
+              transition={{ repeat: isConflict || brick.type === 'recovery' ? Infinity : 0, duration: 2 }}
+              style={{ x: brick.x, y: brick.y, position: 'absolute' }}
+              className={`cursor-grab active:cursor-grabbing ${isActive || isCore ? 'z-50' : 'z-20'}`}
+            >
+              <div className={`relative rounded-2xl border-2 border-b-[8px] border-r-[6px] ${def.bg} ${def.border} ${def.text} ${sizeClass} flex flex-col ${isCore ? 'shadow-[0_0_50px_rgba(255,255,255,0.8)]' : 'shadow-xl'} transition-shadow`}>
+                <BlockStuds bg={def.bg.replace('bg-', '')} border={def.border.replace('border-', '')} />
+                <div className="px-4 py-3 flex items-center justify-between border-b border-black/10">
+                  <div className="flex items-center gap-2 font-black text-sm">
+                    <Icon size={16} /> {brick.label} {isCore && <span className="ml-2 text-[10px] bg-white/20 px-2 py-0.5 rounded">CORE</span>}
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={(e) => { e.stopPropagation(); updateBrick(brick.id, { importance: brick.importance === 3 ? 1 : 3 }); }} className="hover:bg-black/20 p-1 rounded-md" title="크기 변경"><Grid size={14}/></button>
+                    <button onClick={(e) => { e.stopPropagation(); deleteBrick(brick.id); }} className="hover:bg-black/20 p-1 rounded-md" title="삭제"><X size={14}/></button>
+                  </div>
+                </div>
+                <textarea 
+                  value={brick.content}
+                  onChange={(e) => updateBrick(brick.id, { content: e.target.value })}
+                  placeholder="내용을 입력하세요..."
+                  className={`w-full flex-1 p-4 font-bold text-sm bg-transparent resize-none focus:outline-none placeholder:text-white/50 ${def.text}`}
+                  onMouseDown={(e) => e.stopPropagation()}
+                />
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+          );
+        })}
 
-  // --------------------------------------------------------
-  // 3. REPORT VIEW (Structured Output)
-  // --------------------------------------------------------
-  const renderReport = () => {
-    // Extract insights & Use Selected Core Brick
-    const experiences = bricks.filter(b => b.type === 'experience' && b.content);
-    const anxieties = bricks.filter(b => b.type === 'anxiety' && b.content);
-    const constraints = bricks.filter(b => b.type === 'constraint' && b.content);
-    const desires = bricks.filter(b => b.type === 'desire' && b.content);
-    
-    const coreBrick = CORE_BRICKS[userCoreBrick || 'stability'];
-    const CoreIcon = coreBrick.icon;
+        {/* Insight Alert Overlay */}
+        <AnimatePresence>
+          {insightMessage && (
+            <motion.div 
+              initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }}
+              className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-2xl border-b-4 border-slate-950 shadow-2xl z-50 flex items-center gap-4 max-w-xl w-full"
+            >
+              <div className="p-2 bg-indigo-500 rounded-xl"><Sparkles size={20} /></div>
+              <p className="font-bold text-sm leading-relaxed">{insightMessage}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-    return (
-      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 overflow-y-auto pb-32">
-        <header className="bg-white border-b-4 border-slate-200 sticky top-0 z-50 shadow-sm">
-          <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-            <button onClick={() => setView('workspace')} className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-black text-sm transition-colors px-3 py-1.5 bg-slate-100 rounded-lg border-b-2 border-slate-300 active:border-b-0 active:translate-y-[2px]">
-              <Grid size={18} /> 캔버스로 돌아가기
-            </button>
-            <div className="flex gap-3">
-               <button className="flex items-center gap-2 px-4 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors border-b-[4px] active:border-b-2 active:translate-y-[2px]">
-                 <Share2 size={16} /> 공유
-               </button>
-               <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-black hover:bg-indigo-500 transition-colors shadow-md border-b-[4px] border-indigo-900 active:border-b-0 active:translate-y-[4px]">
-                 <Download size={16} /> PDF 저장
-               </button>
-            </div>
-          </div>
-        </header>
-
-        <main className="max-w-5xl mx-auto px-6 pt-12 space-y-12">
-          
-          <div className="text-center max-w-2xl mx-auto space-y-4 bg-white p-10 rounded-2xl border-[3px] border-b-[8px] border-r-[6px] border-slate-300 shadow-xl relative mt-4">
-             <div className="absolute -top-10 left-1/2 -translate-x-1/2">
-                <div className="w-20 h-20 rounded-2xl border-4 border-b-[8px] border-r-[6px] bg-indigo-600 border-indigo-900 flex items-center justify-center text-white shadow-lg">
-                  <Map size={32} />
-                  <BlockStuds bg="bg-indigo-600" border="border-indigo-900" />
-                </div>
-             </div>
-
-            <h1 className="text-4xl font-black tracking-tight text-slate-900 mt-6">구조화 리포트</h1>
-            <p className="text-lg text-slate-600 font-bold leading-relaxed">
-              캔버스에 조립된 {bricks.length}개의 블록들을 분석하여,<br/>
-              현재 상태의 중심축과 가장 현실적인 다음 경로를 도출했습니다.
-            </p>
-          </div>
-
-          {/* Section: CORE BRICK */}
-          <section className="mt-12 relative">
-             <div className={`p-10 rounded-3xl border-[4px] border-b-[16px] border-r-[12px] ${coreBrick.color} ${coreBrick.border} ${coreBrick.glow} flex flex-col items-center text-center text-white relative z-20`}>
-                <BlockStuds bg={coreBrick.color.replace('bg-', '')} border={coreBrick.border.replace('border-', '')} large />
-                
-                <div className="px-4 py-1.5 bg-white/20 rounded-full font-black text-sm uppercase tracking-widest mb-6 backdrop-blur-md border border-white/30">
-                  Your Core Brick
-                </div>
-                
-                <CoreIcon size={64} className="mb-4 opacity-90" />
-                
-                <h2 className="text-4xl md:text-5xl font-black mb-6">"{coreBrick.title}"</h2>
-                
-                <p className="text-lg font-bold leading-relaxed max-w-3xl opacity-90">
-                  {coreBrick.desc}
-                </p>
-
-                <div className="mt-10 grid md:grid-cols-2 gap-4 w-full">
-                  <div className="bg-black/20 p-5 rounded-2xl border border-white/10 text-left border-b-4 border-black/40">
-                    <h4 className="font-black text-white/80 mb-2 flex items-center gap-2"><Layers size={18}/> 중심 주변의 블록들</h4>
-                    <p className="text-sm font-bold opacity-90">당신이 캔버스에 놓은 많은 욕구와 제약 블록들이 결국 스스로 선택하신 이 <b>{coreBrick.title}</b>을(를) 달성하거나 보호하기 위해 연결되어 있습니다.</p>
-                  </div>
-                  <div className="bg-black/20 p-5 rounded-2xl border border-white/10 text-left border-b-4 border-black/40">
-                    <h4 className="font-black text-white/80 mb-2 flex items-center gap-2"><AlertTriangle size={18}/> 주요 충돌 발생</h4>
-                    <p className="text-sm font-bold opacity-90">이 거대한 중심축이 주변의 다른 블록(예: {desires[0]?.content || '새로운 시도'})과 부딪히면서 지금의 멈칫거림과 고민을 만들어내고 있습니다.</p>
-                  </div>
-                </div>
-             </div>
-             
-             {/* Visual connection lines to next section */}
-             <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-4 h-24 bg-slate-300 border-x-4 border-slate-400 z-10"></div>
-          </section>
-
-          {/* Section 1: Current Map */}
-          <section className="bg-slate-50 rounded-3xl p-8 border-[3px] border-b-[10px] border-r-[8px] border-slate-300 shadow-xl relative mt-20 z-20">
-            <BlockStuds bg="bg-slate-50" border="border-slate-300" />
-            <h2 className="text-xl font-black flex items-center gap-2 mb-6 border-b-4 border-slate-200 pb-4">
-              <Map className="text-indigo-500" /> 연결 블록 구조도 (State Map)
-            </h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="space-y-3">
-                <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2"><Briefcase size={16}/> 나의 핵심 자원</h3>
-                {experiences.length > 0 ? experiences.map(b => (
-                  <BlockContainer key={b.id} type="experience" className="p-3 text-sm font-bold shadow-md">{b.content}</BlockContainer>
-                )) : <div className="p-4 bg-slate-100 text-slate-400 rounded-xl text-sm font-bold border-2 border-slate-300 border-dashed">입력된 경험 블록이 없습니다.</div>}
-              </div>
-              
-              <div className="space-y-3">
-                <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2"><Lock size={16}/> 절대적 제약</h3>
-                {constraints.length > 0 ? constraints.map(b => (
-                  <BlockContainer key={b.id} type="constraint" className="p-3 text-sm font-bold shadow-md">{b.content}</BlockContainer>
-                )) : <div className="p-4 bg-slate-100 text-slate-400 rounded-xl text-sm font-bold border-2 border-slate-300 border-dashed">제약 블록이 없습니다.</div>}
-              </div>
-
-              <div className="space-y-3">
-                <h3 className="text-sm font-black text-rose-500 uppercase tracking-wider flex items-center gap-2"><AlertTriangle size={16}/> 병목 블록</h3>
-                <div className="p-5 bg-rose-50 border-4 border-rose-200 rounded-2xl shadow-inner">
-                  <p className="text-sm text-rose-800 leading-relaxed font-black">
-                    현재 <b>{desires[0]?.content || "새로운 변화"}</b>를 원하지만, 동시에 <b>{anxieties[0]?.content || "불확실성"}</b>에 대한 불안이 왕블럭과 충돌하여 실행을 가로막고 있습니다.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Section 2: Path Analysis */}
-          <section className="space-y-6">
-            <h2 className="text-2xl font-black flex items-center gap-2">
-              <Shuffle className="text-indigo-600" /> 블록 재조립 시나리오
-            </h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Path 1 */}
-              <div className="bg-white rounded-2xl p-8 border-[3px] border-b-[8px] border-r-[6px] border-indigo-300 shadow-xl relative overflow-hidden hover:-translate-y-2 active:translate-y-[2px] active:border-b-[4px] transition-all">
-                <BlockStuds bg="bg-white" border="border-indigo-300" />
-                <div className="absolute top-0 right-0 p-6 opacity-10">
-                  <Target size={100} />
-                </div>
-                <div className="relative z-10">
-                  <span className="px-3 py-1.5 bg-indigo-100 text-indigo-700 text-xs font-black rounded-lg uppercase tracking-wider mb-4 inline-block border-b-2 border-indigo-200">Option A. Pivot</span>
-                  <h3 className="text-2xl font-black text-slate-900 mb-2">핵심 자원 기반의 직무 피벗</h3>
-                  <p className="text-slate-500 font-bold mb-6 text-sm leading-relaxed">
-                    기존 경험({experiences[0]?.content || '현재 역량'}) 블록을 살리되, <b>{coreBrick.title}</b>의 손실을 막으며 새로운 도메인으로 이동.
-                  </p>
-                  
-                  <div className="space-y-4">
-                    <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-100">
-                      <div className="text-xs font-black text-emerald-600 mb-1">방어 가능한 제약 (PROS)</div>
-                      <div className="text-sm font-bold text-slate-700">왕블럭({coreBrick.title}) 유지 가능성</div>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-100">
-                      <div className="text-xs font-black text-rose-600 mb-1">감수해야 할 리스크 (CONS)</div>
-                      <div className="text-sm font-bold text-slate-700">초기 3~6개월의 높은 에너지 소모와 불확실성</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Path 2 */}
-              <div className="bg-white rounded-2xl p-8 border-[3px] border-b-[8px] border-r-[6px] border-slate-300 shadow-xl relative overflow-hidden hover:-translate-y-2 active:translate-y-[2px] active:border-b-[4px] transition-all">
-                <BlockStuds bg="bg-white" border="border-slate-300" />
-                <div className="absolute top-0 right-0 p-6 opacity-5">
-                  <Minimize2 size={100} />
-                </div>
-                <div className="relative z-10">
-                  <span className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-black rounded-lg uppercase tracking-wider mb-4 inline-block border-b-2 border-slate-200">Option B. Stay & Side</span>
-                  <h3 className="text-2xl font-black text-slate-900 mb-2">현직 유지 + 워라밸 확보</h3>
-                  <p className="text-slate-500 font-bold mb-6 text-sm leading-relaxed">
-                    현재 직장에서 에너지를 조율하고, <b>{coreBrick.title}</b>을 완벽히 보호하며 나머지 에너지를 개인 성장에 투자하는 전략.
-                  </p>
-                  
-                  <div className="space-y-4">
-                    <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-100">
-                      <div className="text-xs font-black text-emerald-600 mb-1">방어 가능한 제약 (PROS)</div>
-                      <div className="text-sm font-bold text-slate-700">심리적 안정감 극대화 및 {anxieties[0]?.content || '불안 요소'} 완벽 차단</div>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-100">
-                      <div className="text-xs font-black text-rose-600 mb-1">감수해야 할 리스크 (CONS)</div>
-                      <div className="text-sm font-bold text-slate-700">{desires[0]?.content || '자아 실현 욕구'}의 지연 및 동기부여 저하</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Section 3: Next Actions */}
-          <section className="bg-indigo-600 rounded-3xl p-8 md:p-10 text-white shadow-2xl flex flex-col md:flex-row gap-8 items-center relative border-[3px] border-b-[12px] border-r-[8px] border-indigo-900 mt-12">
-             <BlockStuds bg="bg-indigo-600" border="border-indigo-900" />
-             <div className="md:w-1/3 z-10 space-y-4">
-               <h2 className="text-3xl font-black tracking-tight">2주 안에 실행할<br/>작은 조립</h2>
-               <p className="text-indigo-200 font-bold text-sm leading-relaxed">
-                 거창한 이직이나 퇴사가 아닌, 각 경로별 리스크를 작게 테스트해 볼 수 있는 구체적인 액션 아이템입니다.
-               </p>
-             </div>
-             <div className="md:w-2/3 z-10 w-full space-y-4">
-               <div className="flex items-start gap-4 bg-white/10 p-5 rounded-2xl border-2 border-white/20 backdrop-blur-sm border-b-4 border-r-4">
-                 <div className="w-10 h-10 rounded-xl bg-white text-indigo-900 flex items-center justify-center shrink-0 font-black shadow-lg border-b-4 border-indigo-200">A</div>
-                 <div>
-                   <h4 className="font-black text-white mb-1.5 text-lg">Option A 테스트: 현직자 커피챗</h4>
-                   <p className="text-sm text-indigo-100 font-bold leading-relaxed">직무 피벗이 나의 <b>{coreBrick.title}</b>을(를) 심각하게 훼손하지 않는지 확인하기 위해, 관심 직무 현직자에게 가벼운 질문을 던져봅니다.</p>
-                 </div>
-               </div>
-               <div className="flex items-start gap-4 bg-white/10 p-5 rounded-2xl border-2 border-white/20 backdrop-blur-sm border-b-4 border-r-4">
-                 <div className="w-10 h-10 rounded-xl bg-slate-300 text-slate-900 flex items-center justify-center shrink-0 font-black shadow-lg border-b-4 border-slate-500">B</div>
-                 <div>
-                   <h4 className="font-black text-white mb-1.5 text-lg">Option B 테스트: 시간/에너지 통제 실험</h4>
-                   <p className="text-sm text-indigo-100 font-bold leading-relaxed">현직을 유지하되, 이번 주 목요일 하루만 완벽히 정시 퇴근하고 <b>{desires[0]?.content || '사이드 프로젝트'}</b>에 2시간을 온전히 투자해 봅니다.</p>
-                 </div>
-               </div>
-             </div>
-          </section>
-
-        </main>
       </div>
-    );
-  };
 
-  // --------------------------------------------------------
-  // ROUTER LOGIC
-  // --------------------------------------------------------
-  return (
-    <AnimatePresence mode="wait">
-      {view === 'landing' && <motion.div key="landing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-screen">{renderLanding()}</motion.div>}
-      {view === 'workspace' && <motion.div key="workspace" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="h-screen">{renderWorkspace()}</motion.div>}
-      {view === 'report' && <motion.div key="report" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-screen">{renderReport()}</motion.div>}
-    </AnimatePresence>
+      {/* 3. RIGHT PANEL: Structuring Panel */}
+      <div className="w-96 bg-white border-l-4 border-slate-200 flex flex-col z-30 shadow-[-10px_0_30px_rgba(0,0,0,0.05)] relative overflow-y-auto custom-scrollbar">
+        <div className="p-6 border-b border-slate-100 bg-slate-50 sticky top-0 z-10">
+          <h2 className="text-lg font-black text-slate-800 flex items-center gap-2"><Map className="text-indigo-600"/> 구조화 리포트</h2>
+          <p className="text-xs font-bold text-slate-500 mt-1">캔버스의 상태가 실시간 분석됩니다.</p>
+        </div>
+
+        <div className="p-6 space-y-8">
+          
+          {/* Core Brick Analysis */}
+          <section>
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Hexagon size={14}/> Extracted Core</h3>
+            <div className={`p-5 rounded-2xl border-2 border-b-[6px] border-r-[4px] ${CoreDef.color} ${CoreDef.border} text-white`}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-white/20 rounded-xl"><CoreDef.icon size={20} /></div>
+                <h4 className="font-black text-xl">{CoreDef.title}</h4>
+              </div>
+              <p className="text-xs font-bold opacity-90 leading-relaxed bg-black/20 p-3 rounded-xl border border-black/10">
+                캔버스에 놓인 블록 빈도와 제약/불안 요소의 군집을 분석한 결과, 현재 당신을 움직이는 가장 큰 축은 <b>'{CoreDef.title}'</b>입니다.
+              </p>
+            </div>
+          </section>
+
+          {/* Conflict Network */}
+          <section>
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><LinkIcon size={14}/> Major Conflicts</h3>
+            {connections.filter(c => c.type === 'conflict').length > 0 ? (
+              <div className="space-y-3">
+                {connections.filter(c => c.type === 'conflict').map(conn => {
+                   const b1 = bricks.find(b=>b.id===conn.from);
+                   const b2 = bricks.find(b=>b.id===conn.to);
+                   return b1 && b2 ? (
+                     <div key={conn.id} className="bg-rose-50 border-2 border-rose-200 p-4 rounded-xl flex items-center justify-between">
+                       <span className="text-sm font-black text-rose-800 bg-white px-2 py-1 rounded shadow-sm">{b1.label}</span>
+                       <Target size={16} className="text-rose-400"/>
+                       <span className="text-sm font-black text-rose-800 bg-white px-2 py-1 rounded shadow-sm">{b2.label}</span>
+                     </div>
+                   ) : null;
+                })}
+              </div>
+            ) : (
+              <div className="text-xs text-slate-400 font-bold bg-slate-50 p-4 rounded-xl border-2 border-dashed border-slate-200">
+                아직 발견된 강한 충돌(Conflict)이 없습니다. 서로 반대되는 욕구와 불안을 놓아보세요.
+              </div>
+            )}
+          </section>
+
+          {/* Structural Paths */}
+          <section>
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Shuffle size={14}/> Recommended Paths</h3>
+            <div className="space-y-4">
+              <div className="bg-white border-2 border-slate-200 border-b-4 p-4 rounded-xl hover:-translate-y-1 hover:border-indigo-300 transition-colors cursor-pointer group">
+                <div className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2 py-1 rounded inline-block mb-2">Option A</div>
+                <h4 className="font-black text-slate-800 text-sm mb-1 group-hover:text-indigo-600">Core 중심의 피벗</h4>
+                <p className="text-xs text-slate-500 font-bold leading-relaxed">{CoreDef.title}을 완벽히 지키면서 제약을 회피하는 경로입니다.</p>
+              </div>
+              <div className="bg-white border-2 border-slate-200 border-b-4 p-4 rounded-xl hover:-translate-y-1 hover:border-slate-400 transition-colors cursor-pointer group">
+                <div className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-1 rounded inline-block mb-2">Option B</div>
+                <h4 className="font-black text-slate-800 text-sm mb-1">유지 및 분리 (Stay & Side)</h4>
+                <p className="text-xs text-slate-500 font-bold leading-relaxed">현직을 유지하되, 에너지를 분산시켜 다른 블록의 욕구를 해소합니다.</p>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
   );
 }
