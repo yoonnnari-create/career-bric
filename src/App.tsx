@@ -4,7 +4,7 @@ import {
   Box, Target, AlertTriangle, Lock, Users, Battery, DollarSign, 
   Briefcase, Heart, Activity, Search, Plus, X, ArrowRight, Grid, 
   LayoutDashboard, Shuffle, Map, Compass, ShieldAlert,
-  Layers, Sparkles, Link as LinkIcon, CheckCircle
+  Layers, Sparkles, Link as LinkIcon, CheckCircle, Zap
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
